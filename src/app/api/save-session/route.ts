@@ -1,9 +1,14 @@
-
 import { NextResponse } from "next/server";
 import { supabaseServer, isSupabaseConfigured } from "@/lib/supabase";
 import type { Feedback } from "@/types";
 
 export const runtime = "nodejs";
+
+interface CategoryScoreBucket {
+  points: number;
+  max: number;
+  percentage: number | null;
+}
 
 interface SaveSessionRequest {
   scenarioId: string;
@@ -61,21 +66,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const pct =
-      feedback.teacher.maxPoints > 0
-        ? Math.round(
-            (feedback.teacher.totalPoints / feedback.teacher.maxPoints) * 100,
-          )
-        : 0;
+    const pct = feedback.teacher.maxPoints > 0
+      ? Math.round((feedback.teacher.totalPoints / feedback.teacher.maxPoints) * 100)
+      : 0;
 
-    const categoryScores: Record
-      string,
-      { points: number; max: number; percentage: number | null }
-    > = {};
+    const categoryScores: Record<string, CategoryScoreBucket> = {};
 
     for (const score of feedback.teacher.competencyScores) {
-      const category =
-        competencyCategories[score.competencyId] || "subject_knowledge";
+      const category = competencyCategories[score.competencyId] || "subject_knowledge";
       if (!categoryScores[category]) {
         categoryScores[category] = { points: 0, max: 0, percentage: null };
       }
