@@ -1,4 +1,3 @@
-
 import type { Scenario } from "@/types";
 
 export const SCENARIOS: Record<string, Scenario> = {
@@ -25,36 +24,50 @@ export const SCENARIOS: Record<string, Scenario> = {
         "The fridge and cupboards are almost bare. You helped stock them with a full shop last Thursday.",
       ],
     },
-    rubric: `A strong answer should cover:
-
-CONCERNS TO IDENTIFY:
-- Potential financial abuse (disturbed bank statements, possibly missing groceries)
-- An unknown individual claiming to be family (not mentioned previously in four months)
-- Change in service user's behaviour (quieter, deflective, "don't want to cause a fuss" is a recognised indicator of intimidation or coercion)
-- Food gone despite recent full shopping (possible theft, coercion, or control)
-- Edna's vulnerability given early-stage dementia and isolation
-
-IN THE MOMENT:
-- Do NOT confront or accuse the man or mention suspicions to Edna
-- Complete the visit calmly so as not to escalate or alert a potential perpetrator
-- Have a gentle, open conversation to understand how Edna is feeling without leading her
-- Ensure Edna is physically safe before leaving
-- Document factually (what was seen and heard, not assumed)
-
-PROCESS AFTERWARD:
-- Report concerns to line manager or safeguarding lead immediately upon leaving the property
-- Complete a safeguarding concern form
-- Understand this falls under Care Act 2014 section 42 (safeguarding duty)
-- Local authority adult safeguarding team may need to be contacted
-- Police involvement if immediate risk of crime (but safeguarding lead typically decides)
-- Do NOT inform third parties or other family members without authorisation
-- Consider Mental Capacity Act. Does Edna have capacity to make decisions about her own safety right now?
-- Apply Making Safeguarding Personal principles. Edna's voice and wishes matter
-
-RATING GUIDE:
-- Developing: spots a few concerns but may jump to confronting or miss the safeguarding procedure
-- Good: identifies most concerns and follows proper reporting steps
-- Excellent: covers observations, Care Act and MCA framework, Making Safeguarding Personal, AND respects Edna's autonomy`,
+    competencies: [
+      {
+        id: "identified_concerns",
+        label: "Identified safeguarding concerns",
+        lookFor:
+          "Spotted multiple concerning observations: financial indicators (disturbed bank statements, missing groceries), an unknown person claiming family status, behavioural change in the service user (quieter, deflective, 'don't want to cause a fuss').",
+      },
+      {
+        id: "visit_handling",
+        label: "Handled the visit appropriately",
+        lookFor:
+          "Chose NOT to confront or accuse the man, and NOT to lead Edna into disclosure. Kept the visit calm. Ensured Edna was physically safe before leaving. Did not alert a potential perpetrator.",
+      },
+      {
+        id: "reporting_process",
+        label: "Followed correct reporting procedure",
+        lookFor:
+          "Would report to line manager or safeguarding lead immediately on leaving. Would complete a safeguarding concern form. Would NOT discuss with third parties or involve family without authorisation.",
+      },
+      {
+        id: "care_act",
+        label: "Referenced Care Act 2014 safeguarding duty",
+        lookFor:
+          "Mentioned Care Act 2014, section 42, or the local authority's statutory safeguarding duty.",
+      },
+      {
+        id: "mental_capacity",
+        label: "Considered Mental Capacity Act",
+        lookFor:
+          "Raised Edna's capacity to make decisions about her own safety, given her early-stage dementia. Mentioned Mental Capacity Act, MCA, or capacity assessment.",
+      },
+      {
+        id: "making_safeguarding_personal",
+        label: "Applied Making Safeguarding Personal",
+        lookFor:
+          "Respected Edna's voice, wishes, and autonomy. Did not override her agency. Treated her as an active participant in her own safeguarding, not a passive subject.",
+      },
+      {
+        id: "documentation",
+        label: "Emphasised factual documentation",
+        lookFor:
+          "Mentioned documenting what was seen and heard, sticking to facts, avoiding assumptions, creating a clear record.",
+      },
+    ],
     casePlainText: `Service user: Mrs. Edna Whitmore, 82. Lives alone. Early-stage dementia. Four months of weekly domiciliary care visits.
 Observations this visit:
 - Care notebook moved from normal place
