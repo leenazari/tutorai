@@ -447,36 +447,13 @@ export default function Tutor({ scenarios }: TutorProps) {
                   </div>
                 )}
 
-              {feedback.student.actionPlan &&
-                feedback.student.actionPlan.length > 0 && (
-                  <div
-                    className="rounded-xl p-4 mb-4"
-                    style={{
-                      backgroundColor: "rgba(51, 102, 255, 0.15)",
-                      border: "1px solid rgba(51, 102, 255, 0.4)",
-                    }}
-                  >
-                    <div
-                      className="text-xs uppercase tracking-wider font-semibold mb-2"
-                      style={{ color: "#9db5ff" }}
-                    >
-                      Your action plan before next time
-                    </div>
-                    <ul className="space-y-2">
-                      {feedback.student.actionPlan.map((s, i) => (
-                        <li
-                          key={i}
-                          className="text-white text-sm flex gap-2 leading-relaxed"
-                        >
-                          <span className="text-blue-300 flex-shrink-0 font-bold">
-                            {i + 1}.
-                          </span>
-                          <span>{s}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+              {feedback.student.encouragement && (
+                <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 mb-4">
+                  <p className="text-slate-200 text-sm italic">
+                    {feedback.student.encouragement}
+                  </p>
+                </div>
+              )}
 
               {feedback.student.actionPlan &&
                 feedback.student.actionPlan.length > 0 && (
