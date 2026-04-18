@@ -45,8 +45,6 @@ export async function POST(request: Request) {
       .join("\n\n");
 
     const maxPoints = scenario.competencies.length * 2;
-    const excellentThreshold = Math.ceil(maxPoints * 0.75);
-    const goodThreshold = Math.ceil(maxPoints * 0.4);
 
     const prompt = `You are an AI tutor giving feedback to a learner studying ${scenario.subject}, on ${scenario.topic}.
 
@@ -69,14 +67,18 @@ For EACH competency, assign a status:
 
 Be strict but fair. If the student merely implied something without stating it, that is "partial" at most. Do not be generous for the sake of being kind. Teachers rely on accurate scoring.
 
-Calculate total points out of ${maxPoints}. Overall rating:
-- "excellent" if total >= ${excellentThreshold}
-- "good" if total >= ${goodThreshold}
-- "developing" otherwise
+Calculate total points out of ${maxPoints}. Convert to a percentage (totalPoints / ${maxPoints} * 100, rounded to an integer).
+
+Overall rating based on percentage:
+- "not_yet_ready" if 0 to 20 percent
+- "developing" if 21 to 40 percent
+- "competent" if 41 to 60 percent
+- "strong" if 61 to 80 percent
+- "excellent" if 81 to 100 percent
 
 Produce TWO outputs:
-1. TEACHER: structured per-competency breakdown with factual, concise justifications.
-2. STUDENT: warm, encouraging, plain-English summary. NO mention of competencies, points, or scoring. Treat them as an adult learner, not a child. Specific, not generic.
+1. TEACHER: structured per-competency breakdown with factual, concise justifications, and a 2 to 3 sentence teacher summary analysing where the student is and what they need next.
+2. STUDENT: warm, encouraging, plain-English summary. NO mention of competencies, points, scoring, or rating labels. Treat them as an adult learner, not a child. Specific, not generic.
 
 Respond with ONLY valid JSON in this exact shape. No preamble, no code fences, no em dashes anywhere:
 
@@ -93,7 +95,7 @@ Respond with ONLY valid JSON in this exact shape. No preamble, no code fences, n
         "justification": "one short sentence explaining why"
       }
     ],
-    "overallSummary": "2 to 3 sentence teacher-facing analysis of where this student is at and what they need next"
+    "overallSummary": "2 to 3 sentence teacher-facing analysis"
   },
   "student": {
     "rating": "developing",
@@ -105,7 +107,7 @@ Respond with ONLY valid JSON in this exact shape. No preamble, no code fences, n
   }
 }
 
-The rating in "student" must match the rating in "teacher". The competencyScores array must have exactly ${scenario.competencies.length} entries, one per competency, in the same order as listed above.`;
+The rating in "student" must match the rating in "teacher". The competencyScores array must have exactly ${scenario.competencies.length} entries, one per competency, in the same order as listed above. The rating value must be exactly one of: "not_yet_ready", "developing", "competent", "strong", "excellent".`;
 
     const response = await anthropic.messages.create({
       model: "claude-haiku-4-5",
