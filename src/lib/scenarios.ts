@@ -6,7 +6,7 @@ export const SCENARIOS: Record<string, Scenario> = {
     subject: "Social Care",
     topic: "Safeguarding, home visit",
     introSpoken:
-      "Hi, welcome to today's session. You're training in social care, and I've got a home visit scenario for you. Have a read through the case brief on your right. When you're ready, tap the microphone and talk me through your concerns, what you would do in the moment, and the process you would follow from here.",
+      "Hi, welcome to today's session. You're training in social care, and I've got a home visit scenario for you. Have a look through the case brief on your right. When you're ready, tap the microphone and talk me through your concerns, what you would do in the moment, and the process you would follow from here.",
     questionText:
       "Read the home visit brief on the right. Talk me through what concerns you, what you would do right now during the visit, and the process you would follow afterward.",
     caseFile: {
