@@ -108,7 +108,7 @@ Respond with ONLY valid JSON in this exact shape. No preamble, no code fences, n
 The rating in "student" must match the rating in "teacher". The competencyScores array must have exactly ${scenario.competencies.length} entries, one per competency, in the same order as listed above.`;
 
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-haiku-4-5",
       max_tokens: 2500,
       messages: [{ role: "user", content: prompt }],
     });
