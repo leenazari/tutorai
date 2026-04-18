@@ -23,6 +23,7 @@ export interface Scenario {
   id: string;
   subject: string;
   topic: string;
+  description: string;
   introSpoken: string;
   questionText: string;
   caseFile: CaseFile;
@@ -58,6 +59,7 @@ export interface StudentIdentity {
 }
 
 export type Stage =
+  | "pick"
   | "welcome"
   | "intro"
   | "ready"
