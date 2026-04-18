@@ -1,3 +1,5 @@
+import type { CategoryId, Rating } from "@/lib/categories";
+
 export interface CaseFile {
   title: string;
   serviceUser: string;
@@ -9,6 +11,7 @@ export interface CaseFile {
 export interface Competency {
   id: string;
   label: string;
+  category: CategoryId;
   lookFor: string;
 }
 
@@ -32,7 +35,7 @@ export interface Scenario {
 }
 
 export interface StudentFeedback {
-  rating: "developing" | "good" | "excellent";
+  rating: Rating;
   strengths: string[];
   improvements: string[];
   actionPlan: string[];
@@ -41,7 +44,7 @@ export interface StudentFeedback {
 }
 
 export interface TeacherScoreCard {
-  rating: "developing" | "good" | "excellent";
+  rating: Rating;
   totalPoints: number;
   maxPoints: number;
   competencyScores: CompetencyScore[];
