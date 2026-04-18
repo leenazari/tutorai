@@ -6,13 +6,14 @@ import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import type { Feedback, Scenario, Stage, StudentIdentity } from "@/types";
 
 interface TutorProps {
-  scenario: Scenario;
+  scenarios: Scenario[];
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default function Tutor({ scenario }: TutorProps) {
-  const [stage, setStage] = useState<Stage>("welcome");
+export default function Tutor({ scenarios }: TutorProps) {
+  const [stage, setStage] = useState<Stage>("pick");
+  const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [apiError, setApiError] = useState("");
   const [identity, setIdentity] = useState<StudentIdentity | null>(null);
@@ -23,7 +24,18 @@ export default function Tutor({ scenario }: TutorProps) {
   const tts = useSpeechSynthesis();
   const sr = useSpeechRecognition();
 
+  const handlePickScenario = (scenario: Scenario) => {
+    setSelectedScenario(scenario);
+    setStage("welcome");
+  };
+
+  const handleBackToPicker = () => {
+    tts.stopSpeaking();
+    setStage("pick");
+  };
+
   const handleStart = () => {
+    if (!selectedScenario) return;
     const name = nameInput.trim();
     const email = emailInput.trim();
     if (!name) {
@@ -37,7 +49,7 @@ export default function Tutor({ scenario }: TutorProps) {
     setFormError("");
     setIdentity({ name, email });
     setStage("intro");
-    tts.speak(scenario.introSpoken, () => setStage("ready"));
+    tts.speak(selectedScenario.introSpoken, () => setStage("ready"));
   };
 
   const handleSkipIntro = () => {
@@ -47,6 +59,7 @@ export default function Tutor({ scenario }: TutorProps) {
 
   const submitAnswer = useCallback(
     async (text: string) => {
+      if (!selectedScenario) return;
       setStage("processing");
       setApiError("");
       try {
@@ -54,7 +67,7 @@ export default function Tutor({ scenario }: TutorProps) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            scenarioId: scenario.id,
+            scenarioId: selectedScenario.id,
             studentAnswer: text,
             studentName: identity?.name,
             studentEmail: identity?.email,
@@ -78,7 +91,7 @@ export default function Tutor({ scenario }: TutorProps) {
         setStage("ready");
       }
     },
-    [scenario.id, tts, identity],
+    [selectedScenario, tts, identity],
   );
 
   const handleRecord = () => {
@@ -105,13 +118,13 @@ export default function Tutor({ scenario }: TutorProps) {
     }
   };
 
-  const handleRetry = () => {
+  const handleRetrySameScenario = () => {
     tts.stopSpeaking();
     setFeedback(null);
     setStage("ready");
   };
 
-  const handleAbort = useCallback(() => {
+  const handleFullReset = useCallback(() => {
     tts.stopSpeaking();
     sr.hardReset();
     setFeedback(null);
@@ -119,16 +132,25 @@ export default function Tutor({ scenario }: TutorProps) {
     setIdentity(null);
     setNameInput("");
     setEmailInput("");
-    setStage("welcome");
+    setSelectedScenario(null);
+    setStage("pick");
   }, [tts, sr]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleAbort();
+      if (e.key === "Escape") handleFullReset();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [handleAbort]);
+  }, [handleFullReset]);
+
+  if (stage === "pick") {
+    return <ScenarioPicker scenarios={scenarios} onPick={handlePickScenario} />;
+  }
+
+  if (!selectedScenario) {
+    return null;
+  }
 
   return (
     <div className="h-screen flex flex-col bg-slate-50">
@@ -142,7 +164,7 @@ export default function Tutor({ scenario }: TutorProps) {
               Interviewa Tutor
             </div>
             <div className="text-xs text-slate-500">
-              {scenario.subject} · {scenario.topic}
+              {selectedScenario.subject} · {selectedScenario.topic}
             </div>
           </div>
         </div>
@@ -156,15 +178,13 @@ export default function Tutor({ scenario }: TutorProps) {
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
             Live session
           </div>
-          {stage !== "welcome" && (
-            <button
-              onClick={handleAbort}
-              className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors"
-              title="Reset session (Esc)"
-            >
-              Reset
-            </button>
-          )}
+          <button
+            onClick={handleFullReset}
+            className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors"
+            title="Pick another topic (Esc)"
+          >
+            Pick topic
+          </button>
         </div>
       </header>
 
@@ -251,6 +271,13 @@ export default function Tutor({ scenario }: TutorProps) {
                     Start session
                   </button>
 
+                  <button
+                    onClick={handleBackToPicker}
+                    className="w-full text-sm text-slate-400 hover:text-white underline pt-2"
+                  >
+                    Change topic
+                  </button>
+
                   <p className="text-xs text-slate-500 text-center pt-2">
                     By continuing, you consent to your name, email, and spoken
                     answer being saved for assessment purposes.
@@ -274,7 +301,7 @@ export default function Tutor({ scenario }: TutorProps) {
                 <span className="w-2 h-2 rounded-full bg-white animate-bounce [animation-delay:0.4s]"></span>
               </div>
               <p className="text-slate-200 max-w-md text-lg">
-                &quot;{scenario.introSpoken}&quot;
+                &quot;{selectedScenario.introSpoken}&quot;
               </p>
               <button
                 onClick={handleSkipIntro}
@@ -292,7 +319,7 @@ export default function Tutor({ scenario }: TutorProps) {
                   Your question
                 </div>
                 <p className="text-white leading-relaxed">
-                  {scenario.questionText}
+                  {selectedScenario.questionText}
                 </p>
               </div>
 
@@ -461,16 +488,16 @@ export default function Tutor({ scenario }: TutorProps) {
 
               <div className="mt-4 flex gap-3">
                 <button
-                  onClick={handleRetry}
+                  onClick={handleRetrySameScenario}
                   className="flex-1 px-5 py-3 rounded-xl font-semibold text-white transition-all hover:scale-[1.02] bg-brand"
                 >
                   Try again
                 </button>
                 <button
-                  onClick={() => tts.speak(feedback.student.spokenSummary)}
+                  onClick={handleFullReset}
                   className="px-5 py-3 rounded-xl font-semibold bg-slate-700 text-white hover:bg-slate-600 transition-all"
                 >
-                  Replay
+                  Pick another topic
                 </button>
               </div>
             </div>
@@ -483,9 +510,11 @@ export default function Tutor({ scenario }: TutorProps) {
               Your scenario
             </div>
             <h2 className="font-display text-2xl font-bold text-slate-900">
-              {scenario.subject}
+              {selectedScenario.subject}
             </h2>
-            <p className="text-slate-600 text-sm mt-1">{scenario.topic}</p>
+            <p className="text-slate-600 text-sm mt-1">
+              {selectedScenario.topic}
+            </p>
           </div>
 
           <div className="bg-white rounded-xl overflow-hidden shadow-xl border border-slate-200">
@@ -495,7 +524,7 @@ export default function Tutor({ scenario }: TutorProps) {
                   <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z" />
                 </svg>
                 <span className="font-display font-semibold">
-                  {scenario.caseFile.title}
+                  {selectedScenario.caseFile.title}
                 </span>
               </div>
               <span className="text-xs text-slate-400 tracking-wider">
@@ -508,7 +537,7 @@ export default function Tutor({ scenario }: TutorProps) {
                   Service user
                 </div>
                 <p className="text-slate-900 font-semibold">
-                  {scenario.caseFile.serviceUser}
+                  {selectedScenario.caseFile.serviceUser}
                 </p>
               </div>
               <div>
@@ -516,7 +545,7 @@ export default function Tutor({ scenario }: TutorProps) {
                   Background
                 </div>
                 <p className="text-slate-700 text-sm leading-relaxed">
-                  {scenario.caseFile.background}
+                  {selectedScenario.caseFile.background}
                 </p>
               </div>
               <div>
@@ -524,15 +553,15 @@ export default function Tutor({ scenario }: TutorProps) {
                   Your history with them
                 </div>
                 <p className="text-slate-700 text-sm leading-relaxed">
-                  {scenario.caseFile.history}
+                  {selectedScenario.caseFile.history}
                 </p>
               </div>
               <div>
                 <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-2">
-                  Today&apos;s visit, what you saw and heard
+                  Today&apos;s observations
                 </div>
                 <ul className="space-y-2.5">
-                  {scenario.caseFile.observations.map((obs, i) => (
+                  {selectedScenario.caseFile.observations.map((obs, i) => (
                     <li
                       key={i}
                       className="text-slate-800 text-sm leading-relaxed pl-4 border-l-2 border-amber-400"
@@ -544,20 +573,79 @@ export default function Tutor({ scenario }: TutorProps) {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-          <div className="mt-6 bg-white rounded-xl p-5 border border-slate-200">
-            <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-2">
-              What to consider
-            </div>
-            <ul className="text-sm text-slate-700 space-y-1.5">
-              <li>· What signs are concerning here, and why?</li>
-              <li>· What should you do during the rest of the visit?</li>
-              <li>· Who do you report to, and in what order?</li>
-              <li>
-                · What frameworks apply (Care Act, MCA, Making Safeguarding
-                Personal)?
-              </li>
-            </ul>
+function ScenarioPicker({
+  scenarios,
+  onPick,
+}: {
+  scenarios: Scenario[];
+  onPick: (s: Scenario) => void;
+}) {
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      <header className="flex-shrink-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center gap-2">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold bg-brand">
+          I
+        </div>
+        <div>
+          <div className="font-display font-semibold text-slate-900 text-sm">
+            Interviewa Tutor
+          </div>
+          <div className="text-xs text-slate-500">Scenario-based training</div>
+        </div>
+      </header>
+
+      <div className="flex-1 flex flex-col items-center justify-center p-8">
+        <div className="max-w-5xl w-full">
+          <div className="text-center mb-10">
+            <h1 className="font-display text-4xl font-bold text-slate-900 mb-3">
+              Choose a scenario
+            </h1>
+            <p className="text-slate-600 text-lg">
+              Pick a topic to practice. You will get structured feedback on how
+              you did.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {scenarios.map((scenario) => (
+              <button
+                key={scenario.id}
+                onClick={() => onPick(scenario)}
+                className="group text-left bg-white rounded-2xl p-6 border border-slate-200 hover:border-brand hover:shadow-xl transition-all hover:-translate-y-1"
+              >
+                <div className="text-xs uppercase tracking-wider font-bold text-brand mb-3">
+                  {scenario.subject}
+                </div>
+                <h3 className="font-display text-xl font-bold text-slate-900 mb-3 leading-tight">
+                  {scenario.topic}
+                </h3>
+                <p className="text-slate-600 text-sm leading-relaxed mb-6">
+                  {scenario.description}
+                </p>
+                <div className="flex items-center gap-2 text-sm font-semibold text-brand group-hover:gap-3 transition-all">
+                  Start this scenario
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 7l5 5m0 0l-5 5m5-5H6"
+                    />
+                  </svg>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
       </div>
