@@ -4,15 +4,26 @@ import { useCallback, useEffect, useState } from "react";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import type { Feedback, Scenario, Stage, StudentIdentity } from "@/types";
-import { RATING_BANDS, type Rating } from "@/lib/categories";
+import { RATING_BANDS } from "@/lib/categories";
+import type { Rating } from "@/lib/categories";
 
 interface TutorProps {
   scenarios: Scenario[];
 }
 
+interface ScenarioPickerProps {
+  scenarios: Scenario[];
+  onPick: (s: Scenario) => void;
+}
+
+interface RatingBadgeProps {
+  rating: Rating;
+}
+
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default function Tutor({ scenarios }: TutorProps) {
+export default function Tutor(props: TutorProps) {
+  const { scenarios } = props;
   const [stage, setStage] = useState<Stage>("pick");
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -87,7 +98,6 @@ export default function Tutor({ scenarios }: TutorProps) {
         setStage("feedback");
         tts.speak(data.feedback.student.spokenSummary);
 
-        // Fire-and-forget save. If it fails, the student experience still works.
         const competencyCategories: Record<string, string> = {};
         for (const comp of selectedScenario.competencies) {
           competencyCategories[comp.id] = comp.category;
@@ -202,7 +212,7 @@ export default function Tutor({ scenarios }: TutorProps) {
           <button
             onClick={handleFullReset}
             className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors"
-            title="Pick another topic (Esc)"
+            title="Pick another topic"
           >
             Pick topic
           </button>
@@ -349,26 +359,14 @@ export default function Tutor({ scenarios }: TutorProps) {
                   <div className={sr.listening ? "pulse-ring" : ""}>
                     <button
                       onClick={handleRecord}
-                      className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all ${
-                        sr.listening
-                          ? "bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/40"
-                          : "bg-white hover:bg-slate-50 shadow-lg text-brand"
-                      }`}
+                      className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all ${sr.listening ? "bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/40" : "bg-white hover:bg-slate-50 shadow-lg text-brand"}`}
                     >
                       {sr.listening ? (
-                        <svg
-                          className="w-8 h-8 text-white"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"
-                        >
+                        <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
                           <rect x="6" y="6" width="12" height="12" rx="2" />
                         </svg>
                       ) : (
-                        <svg
-                          className="w-9 h-9"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"
-                        >
+                        <svg className="w-9 h-9" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" />
                         </svg>
                       )}
@@ -422,51 +420,41 @@ export default function Tutor({ scenarios }: TutorProps) {
           {stage === "feedback" && feedback && (
             <div className="flex-1 flex flex-col overflow-y-auto">
               <div className="flex items-center justify-between mb-5">
-                <h2 className="font-display font-semibold text-xl">
-                  Your feedback
-                </h2>
+                <h2 className="font-display font-semibold text-xl">Your feedback</h2>
                 <RatingBadge rating={feedback.student.rating} />
               </div>
 
-              {feedback.student.strengths &&
-                feedback.student.strengths.length > 0 && (
-                  <div className="bg-emerald-900/20 border border-emerald-800/50 rounded-xl p-4 mb-4">
-                    <div className="text-xs uppercase tracking-wider text-emerald-300 font-semibold mb-2">
-                      What you did well
-                    </div>
-                    <ul className="space-y-2">
-                      {feedback.student.strengths.map((s, i) => (
-                        <li
-                          key={i}
-                          className="text-emerald-100 text-sm flex gap-2 leading-relaxed"
-                        >
-                          <span className="text-emerald-400 flex-shrink-0">✓</span>
-                          <span>{s}</span>
-                        </li>
-                      ))}
-                    </ul>
+              {feedback.student.strengths && feedback.student.strengths.length > 0 && (
+                <div className="bg-emerald-900/20 border border-emerald-800/50 rounded-xl p-4 mb-4">
+                  <div className="text-xs uppercase tracking-wider text-emerald-300 font-semibold mb-2">
+                    What you did well
                   </div>
-                )}
+                  <ul className="space-y-2">
+                    {feedback.student.strengths.map((s, i) => (
+                      <li key={i} className="text-emerald-100 text-sm flex gap-2 leading-relaxed">
+                        <span className="text-emerald-400 flex-shrink-0">✓</span>
+                        <span>{s}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-              {feedback.student.improvements &&
-                feedback.student.improvements.length > 0 && (
-                  <div className="bg-amber-900/20 border border-amber-800/50 rounded-xl p-4 mb-4">
-                    <div className="text-xs uppercase tracking-wider text-amber-300 font-semibold mb-2">
-                      Areas to improve
-                    </div>
-                    <ul className="space-y-2">
-                      {feedback.student.improvements.map((s, i) => (
-                        <li
-                          key={i}
-                          className="text-amber-100 text-sm flex gap-2 leading-relaxed"
-                        >
-                          <span className="text-amber-400 flex-shrink-0">→</span>
-                          <span>{s}</span>
-                        </li>
-                      ))}
-                    </ul>
+              {feedback.student.improvements && feedback.student.improvements.length > 0 && (
+                <div className="bg-amber-900/20 border border-amber-800/50 rounded-xl p-4 mb-4">
+                  <div className="text-xs uppercase tracking-wider text-amber-300 font-semibold mb-2">
+                    Areas to improve
                   </div>
-                )}
+                  <ul className="space-y-2">
+                    {feedback.student.improvements.map((s, i) => (
+                      <li key={i} className="text-amber-100 text-sm flex gap-2 leading-relaxed">
+                        <span className="text-amber-400 flex-shrink-0">→</span>
+                        <span>{s}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {feedback.student.encouragement && (
                 <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 mb-4">
@@ -476,36 +464,27 @@ export default function Tutor({ scenarios }: TutorProps) {
                 </div>
               )}
 
-              {feedback.student.actionPlan &&
-                feedback.student.actionPlan.length > 0 && (
+              {feedback.student.actionPlan && feedback.student.actionPlan.length > 0 && (
+                <div
+                  className="rounded-xl p-4 mb-4"
+                  style={{ backgroundColor: "rgba(51, 102, 255, 0.15)", border: "1px solid rgba(51, 102, 255, 0.4)" }}
+                >
                   <div
-                    className="rounded-xl p-4 mb-4"
-                    style={{
-                      backgroundColor: "rgba(51, 102, 255, 0.15)",
-                      border: "1px solid rgba(51, 102, 255, 0.4)",
-                    }}
+                    className="text-xs uppercase tracking-wider font-semibold mb-2"
+                    style={{ color: "#9db5ff" }}
                   >
-                    <div
-                      className="text-xs uppercase tracking-wider font-semibold mb-2"
-                      style={{ color: "#9db5ff" }}
-                    >
-                      Your action plan before next time
-                    </div>
-                    <ul className="space-y-2">
-                      {feedback.student.actionPlan.map((s, i) => (
-                        <li
-                          key={i}
-                          className="text-white text-sm flex gap-2 leading-relaxed"
-                        >
-                          <span className="text-blue-300 flex-shrink-0 font-bold">
-                            {i + 1}.
-                          </span>
-                          <span>{s}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    Your action plan before next time
                   </div>
-                )}
+                  <ul className="space-y-2">
+                    {feedback.student.actionPlan.map((s, i) => (
+                      <li key={i} className="text-white text-sm flex gap-2 leading-relaxed">
+                        <span className="text-blue-300 flex-shrink-0 font-bold">{i + 1}.</span>
+                        <span>{s}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <div className="mt-4 flex gap-3">
                 <button
@@ -548,9 +527,7 @@ export default function Tutor({ scenarios }: TutorProps) {
                   {selectedScenario.caseFile.title}
                 </span>
               </div>
-              <span className="text-xs text-slate-400 tracking-wider">
-                CASE BRIEF
-              </span>
+              <span className="text-xs text-slate-400 tracking-wider">CASE BRIEF</span>
             </div>
             <div className="p-6 space-y-5">
               <div>
@@ -600,13 +577,8 @@ export default function Tutor({ scenarios }: TutorProps) {
   );
 }
 
-function ScenarioPicker({
-  scenarios,
-  onPick,
-}: {
-  scenarios: Scenario[];
-  onPick: (s: Scenario) => void;
-}) {
+function ScenarioPicker(props: ScenarioPickerProps) {
+  const { scenarios, onPick } = props;
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <header className="flex-shrink-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
@@ -659,12 +631,7 @@ function ScenarioPicker({
                 </p>
                 <div className="flex items-center gap-2 text-sm font-semibold text-brand group-hover:gap-3 transition-all">
                   Start this scenario
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -682,7 +649,8 @@ function ScenarioPicker({
   );
 }
 
-function RatingBadge({ rating }: { rating: Rating }) {
+function RatingBadge(props: RatingBadgeProps) {
+  const { rating } = props;
   const band = RATING_BANDS[rating] ?? RATING_BANDS.developing;
   return (
     <span
