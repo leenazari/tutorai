@@ -30,42 +30,49 @@ export const SCENARIOS: Record<string, Scenario> = {
       {
         id: "identified_concerns",
         label: "Identified safeguarding concerns",
+        category: "practical_judgement",
         lookFor:
           "Spotted multiple concerning observations: financial indicators (disturbed bank statements, missing groceries), an unknown person claiming family status, behavioural change in the service user (quieter, deflective, 'don't want to cause a fuss').",
       },
       {
         id: "visit_handling",
         label: "Handled the visit appropriately",
+        category: "practical_judgement",
         lookFor:
           "Chose NOT to confront or accuse the man, and NOT to lead Edna into disclosure. Kept the visit calm. Ensured Edna was physically safe before leaving. Did not alert a potential perpetrator.",
       },
       {
         id: "reporting_process",
         label: "Followed correct reporting procedure",
+        category: "process_procedure",
         lookFor:
           "Would report to line manager or safeguarding lead immediately on leaving. Would complete a safeguarding concern form. Would NOT discuss with third parties or involve family without authorisation.",
       },
       {
         id: "care_act",
         label: "Referenced Care Act 2014 safeguarding duty",
+        category: "subject_knowledge",
         lookFor:
           "Mentioned Care Act 2014, section 42, or the local authority's statutory safeguarding duty.",
       },
       {
         id: "mental_capacity",
         label: "Considered Mental Capacity Act",
+        category: "subject_knowledge",
         lookFor:
           "Raised Edna's capacity to make decisions about her own safety, given her early-stage dementia. Mentioned Mental Capacity Act, MCA, or capacity assessment.",
       },
       {
         id: "making_safeguarding_personal",
         label: "Applied Making Safeguarding Personal",
+        category: "safeguarding_ethics",
         lookFor:
           "Respected Edna's voice, wishes, and autonomy. Did not override her agency. Treated her as an active participant in her own safeguarding, not a passive subject.",
       },
       {
         id: "documentation",
         label: "Emphasised factual documentation",
+        category: "process_procedure",
         lookFor:
           "Mentioned documenting what was seen and heard, sticking to facts, avoiding assumptions, creating a clear record.",
       },
@@ -108,42 +115,49 @@ Observations this visit:
       {
         id: "immediate_safety",
         label: "Ensured immediate safety",
+        category: "practical_judgement",
         lookFor:
           "Stepped back, gave Arthur physical space, did not continue with the task, ensured other residents were safe and not distressed.",
       },
       {
         id: "communication_approach",
         label: "Used appropriate communication",
+        category: "communication",
         lookFor:
           "Calm tone, short simple phrases, eye contact at his level, did not argue or reason with the accusation, reassured him gently.",
       },
       {
         id: "understanding_behaviour",
         label: "Understood the behaviour",
+        category: "subject_knowledge",
         lookFor:
           "Recognised the outburst as a symptom of dementia (fear, confusion, pain, disorientation), not a personal attack or deliberate aggression.",
       },
       {
         id: "dignity_and_privacy",
         label: "Protected dignity and privacy",
+        category: "safeguarding_ethics",
         lookFor:
           "Noted that personal care was being done in a communal space. Would move somewhere private, protected him from being embarrassed in front of other residents.",
       },
       {
         id: "person_centred_care",
         label: "Applied person-centred principles",
+        category: "professional_standards",
         lookFor:
           "Considered what normally works for Arthur, his preferred routines, familiar staff, his care plan, his life history.",
       },
       {
         id: "underlying_causes",
         label: "Considered underlying causes",
+        category: "practical_judgement",
         lookFor:
           "Raised possibility of pain, UTI, medication change, hunger, tiredness, recent life event. A sudden change in behaviour in dementia almost always has an underlying cause.",
       },
       {
         id: "reporting_documentation",
         label: "Followed reporting and documentation",
+        category: "process_procedure",
         lookFor:
           "Would document the incident factually, inform senior staff, review the care plan with the team, consider whether family or GP should be informed.",
       },
@@ -159,87 +173,4 @@ Incident: helping him change his jumper in communal lounge. Suddenly shouts "Get
     description:
       "A post-operative patient's observations are changing rapidly. What do you see, and what do you do about it?",
     introSpoken:
-      "Hi, welcome to today's session. You're training as a nurse, and I've got a clinical scenario for you. Have a good look at the patient brief on your right. When you're ready, tap the microphone and walk me through what you are seeing and how you would respond.",
-    questionText:
-      "Look at the patient observations on the right. Walk me through what you see, what you would do right now, and the process you would follow.",
-    caseFile: {
-      title: "Patient Observation Brief",
-      serviceUser: "Mr. Daniel Okonkwo, 58",
-      background:
-        "Day two post-op following a bowel resection for colorectal cancer. Stable overnight. No previous history of cardiac or respiratory disease. Non-smoker. BMI 27.",
-      history:
-        "You are the nurse caring for him on the ward. Handover at 6am was unremarkable.",
-      observations: [
-        "It is now 10am and you are doing your observations round.",
-        "Respiratory rate is 24 breaths per minute. It was 14 at 6am.",
-        "Heart rate is 115 beats per minute. It was 82 at 6am.",
-        "Blood pressure is 95 over 60. It was 130 over 85 at 6am.",
-        "Temperature is 38.4 degrees. It was 37.1 at 6am.",
-        "Daniel says he is 'feeling a bit off' and that his stomach is 'really tender' now. He did not mention this earlier.",
-        "His lips appear slightly cyanotic.",
-        "NEWS2 score has jumped to 7.",
-      ],
-    },
-    competencies: [
-      {
-        id: "recognise_deterioration",
-        label: "Recognised signs of deterioration",
-        lookFor:
-          "Identified tachypnoea, tachycardia, hypotension, pyrexia, cyanosis, and new abdominal tenderness as concerning signs of deterioration.",
-      },
-      {
-        id: "news2_awareness",
-        label: "Knew NEWS2 implications",
-        lookFor:
-          "Understood that a NEWS2 score of 7 triggers urgent clinical review. Did not dismiss any single parameter in isolation.",
-      },
-      {
-        id: "immediate_actions",
-        label: "Took appropriate immediate actions",
-        lookFor:
-          "Stayed with the patient, performed or escalated to an ABCDE assessment, commenced basic interventions (oxygen, IV access, continuous monitoring), did not leave him unattended.",
-      },
-      {
-        id: "escalation",
-        label: "Escalated correctly",
-        lookFor:
-          "Bleeped the doctor or called the critical care outreach team. Used SBAR format for handover (Situation, Background, Assessment, Recommendation).",
-      },
-      {
-        id: "clinical_reasoning",
-        label: "Demonstrated clinical reasoning",
-        lookFor:
-          "Considered likely differentials: sepsis, anastomotic leak, peritonitis, post-op bleeding. All medical emergencies in the post-op context.",
-      },
-      {
-        id: "sepsis_six",
-        label: "Applied Sepsis Six awareness",
-        lookFor:
-          "Referenced the Sepsis Six pathway: oxygen, blood cultures, IV antibiotics within the first hour, IV fluids, lactate measurement, urine output monitoring.",
-      },
-      {
-        id: "documentation",
-        label: "Emphasised clear documentation",
-        lookFor:
-          "Mentioned contemporaneous, factual documentation of observations, actions, and handover, including time-stamped entries.",
-      },
-    ],
-    casePlainText: `Patient: Daniel Okonkwo, 58. Day 2 post-op bowel resection. Stable overnight.
-Observations at 10am (6am baseline in brackets):
-- Resp rate 24 (14)
-- Heart rate 115 (82)
-- BP 95/60 (130/85)
-- Temp 38.4 (37.1)
-- Patient says "feeling a bit off", stomach "really tender"
-- Lips slightly cyanotic
-- NEWS2 score: 7`,
-  },
-};
-
-export function getScenarioById(id: string): Scenario | undefined {
-  return SCENARIOS[id];
-}
-
-export function getAllScenarios(): Scenario[] {
-  return Object.values(SCENARIOS);
-}
+      "Hi, welcome to today's session. You're training as a nurse, and I've got a c
