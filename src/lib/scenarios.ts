@@ -173,4 +173,104 @@ Incident: helping him change his jumper in communal lounge. Suddenly shouts "Get
     description:
       "A post-operative patient's observations are changing rapidly. What do you see, and what do you do about it?",
     introSpoken:
-      "Hi, welcome to today's session. You're training as a nurse, and I've got a c
+      "Hi, welcome to today's session. You're training as a nurse, and I've got a clinical scenario for you. Have a good look at the patient brief on your right. When you're ready, tap the microphone and walk me through what you are seeing and how you would respond.",
+    questionText:
+      "Look at the patient observations on the right. Walk me through what you see, what you would do right now, and the process you would follow.",
+    caseFile: {
+      title: "Patient Observation Brief",
+      serviceUser: "Mr. Daniel Okonkwo, 58",
+      background:
+        "Day two post-op following a bowel resection for colorectal cancer. Stable overnight. No previous history of cardiac or respiratory disease. Non-smoker. BMI 27.",
+      history:
+        "You are the nurse caring for him on the ward. Handover at 6am was unremarkable.",
+      observations: [
+        "It is now 10am and you are doing your observations round.",
+        "Respiratory rate is 24 breaths per minute. It was 14 at 6am.",
+        "Heart rate is 115 beats per minute. It was 82 at 6am.",
+        "Blood pressure is 95 over 60. It was 130 over 85 at 6am.",
+        "Temperature is 38.4 degrees. It was 37.1 at 6am.",
+        "Daniel says he is 'feeling a bit off' and that his stomach is 'really tender' now. He did not mention this earlier.",
+        "His lips appear slightly cyanotic.",
+        "NEWS2 score has jumped to 7.",
+      ],
+    },
+    competencies: [
+      {
+        id: "recognise_deterioration",
+        label: "Recognised signs of deterioration",
+        category: "practical_judgement",
+        lookFor:
+          "Identified tachypnoea, tachycardia, hypotension, pyrexia, cyanosis, and new abdominal tenderness as concerning signs of deterioration.",
+      },
+      {
+        id: "news2_awareness",
+        label: "Knew NEWS2 implications",
+        category: "subject_knowledge",
+        lookFor:
+          "Understood that a NEWS2 score of 7 triggers urgent clinical review. Did not dismiss any single parameter in isolation.",
+      },
+      {
+        id: "immediate_actions",
+        label: "Took appropriate immediate actions",
+        category: "practical_judgement",
+        lookFor:
+          "Stayed with the patient, performed or escalated to an ABCDE assessment, commenced basic interventions (oxygen, IV access, continuous monitoring), did not leave him unattended.",
+      },
+      {
+        id: "escalation",
+        label: "Escalated correctly",
+        category: "communication",
+        lookFor:
+          "Bleeped the doctor or called the critical care outreach team. Used SBAR format for handover (Situation, Background, Assessment, Recommendation).",
+      },
+      {
+        id: "clinical_reasoning",
+        label: "Demonstrated clinical reasoning",
+        category: "subject_knowledge",
+        lookFor:
+          "Considered likely differentials: sepsis, anastomotic leak, peritonitis, post-op bleeding. All medical emergencies in the post-op context.",
+      },
+      {
+        id: "sepsis_six",
+        label: "Applied Sepsis Six awareness",
+        category: "subject_knowledge",
+        lookFor:
+          "Referenced the Sepsis Six pathway: oxygen, blood cultures, IV antibiotics within the first hour, IV fluids, lactate measurement, urine output monitoring.",
+      },
+      {
+        id: "documentation",
+        label: "Emphasised clear documentation",
+        category: "process_procedure",
+        lookFor:
+          "Mentioned contemporaneous, factual documentation of observations, actions, and handover, including time-stamped entries.",
+      },
+    ],
+    casePlainText: `Patient: Daniel Okonkwo, 58. Day 2 post-op bowel resection. Stable overnight.
+Observations at 10am (6am baseline in brackets):
+- Resp rate 24 (14)
+- Heart rate 115 (82)
+- BP 95/60 (130/85)
+- Temp 38.4 (37.1)
+- Patient says "feeling a bit off", stomach "really tender"
+- Lips slightly cyanotic
+- NEWS2 score: 7`,
+  },
+};
+
+export function getScenarioById(id: string): Scenario | undefined {
+  return SCENARIOS[id];
+}
+
+export function getAllScenarios(): Scenario[] {
+  return Object.values(SCENARIOS);
+}
+
+export function getCompetencyCategoryMap(scenarioId: string): Record<string, string> {
+  const scenario = getScenarioById(scenarioId);
+  if (!scenario) return {};
+  const map: Record<string, string> = {};
+  for (const comp of scenario.competencies) {
+    map[comp.id] = comp.category;
+  }
+  return map;
+}
