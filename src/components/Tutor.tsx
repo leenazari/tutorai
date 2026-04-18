@@ -3,27 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
+import ScenarioPicker from "@/components/ScenarioPicker";
 import type { Feedback, Scenario, Stage, StudentIdentity } from "@/types";
 import { RATING_BANDS } from "@/lib/categories";
 import type { Rating } from "@/lib/categories";
 
-interface TutorProps {
-  scenarios: Scenario[];
-}
-
-interface ScenarioPickerProps {
-  scenarios: Scenario[];
-  onPick: (s: Scenario) => void;
-}
-
-interface RatingBadgeProps {
-  rating: Rating;
-}
-
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default function Tutor(props: TutorProps) {
-  const { scenarios } = props;
+export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
   const [stage, setStage] = useState<Stage>("pick");
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -195,7 +182,7 @@ export default function Tutor(props: TutorProps) {
               Interviewa Tutor
             </div>
             <div className="text-xs text-slate-500">
-              {selectedScenario.subject} · {selectedScenario.topic}
+              {selectedScenario.subject} - {selectedScenario.topic}
             </div>
           </div>
         </div>
@@ -327,9 +314,9 @@ export default function Tutor(props: TutorProps) {
           {stage === "intro" && (
             <div className="flex-1 flex flex-col items-center justify-center text-center">
               <div className="flex items-center gap-1 mb-6">
-                <span className="w-2 h-2 rounded-full bg-white animate-bounce [animation-delay:0s]"></span>
-                <span className="w-2 h-2 rounded-full bg-white animate-bounce [animation-delay:0.2s]"></span>
-                <span className="w-2 h-2 rounded-full bg-white animate-bounce [animation-delay:0.4s]"></span>
+                <span className="w-2 h-2 rounded-full bg-white animate-bounce"></span>
+                <span className="w-2 h-2 rounded-full bg-white animate-bounce"></span>
+                <span className="w-2 h-2 rounded-full bg-white animate-bounce"></span>
               </div>
               <p className="text-slate-200 max-w-md text-lg">
                 &quot;{selectedScenario.introSpoken}&quot;
@@ -409,9 +396,9 @@ export default function Tutor(props: TutorProps) {
           {stage === "processing" && (
             <div className="flex-1 flex flex-col items-center justify-center">
               <div className="flex items-center gap-1 mb-4">
-                <span className="w-3 h-3 rounded-full bg-white animate-bounce [animation-delay:0s]"></span>
-                <span className="w-3 h-3 rounded-full bg-white animate-bounce [animation-delay:0.2s]"></span>
-                <span className="w-3 h-3 rounded-full bg-white animate-bounce [animation-delay:0.4s]"></span>
+                <span className="w-3 h-3 rounded-full bg-white animate-bounce"></span>
+                <span className="w-3 h-3 rounded-full bg-white animate-bounce"></span>
+                <span className="w-3 h-3 rounded-full bg-white animate-bounce"></span>
               </div>
               <p className="text-slate-300">Reviewing your answer...</p>
             </div>
@@ -432,7 +419,7 @@ export default function Tutor(props: TutorProps) {
                   <ul className="space-y-2">
                     {feedback.student.strengths.map((s, i) => (
                       <li key={i} className="text-emerald-100 text-sm flex gap-2 leading-relaxed">
-                        <span className="text-emerald-400 flex-shrink-0">✓</span>
+                        <span className="text-emerald-400 flex-shrink-0">+</span>
                         <span>{s}</span>
                       </li>
                     ))}
@@ -448,7 +435,7 @@ export default function Tutor(props: TutorProps) {
                   <ul className="space-y-2">
                     {feedback.student.improvements.map((s, i) => (
                       <li key={i} className="text-amber-100 text-sm flex gap-2 leading-relaxed">
-                        <span className="text-amber-400 flex-shrink-0">→</span>
+                        <span className="text-amber-400 flex-shrink-0">&gt;</span>
                         <span>{s}</span>
                       </li>
                     ))}
@@ -577,80 +564,7 @@ export default function Tutor(props: TutorProps) {
   );
 }
 
-function ScenarioPicker(props: ScenarioPickerProps) {
-  const { scenarios, onPick } = props;
-  return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <header className="flex-shrink-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold bg-brand">
-            I
-          </div>
-          <div>
-            <div className="font-display font-semibold text-slate-900 text-sm">
-              Interviewa Tutor
-            </div>
-            <div className="text-xs text-slate-500">Scenario-based training</div>
-          </div>
-        </div>
-        
-          href="/teacher"
-          className="text-xs text-slate-500 hover:text-slate-900 underline"
-        >
-          Teacher login
-        </a>
-      </header>
-
-      <div className="flex-1 flex flex-col items-center justify-center p-8">
-        <div className="max-w-5xl w-full">
-          <div className="text-center mb-10">
-            <h1 className="font-display text-4xl font-bold text-slate-900 mb-3">
-              Choose a scenario
-            </h1>
-            <p className="text-slate-600 text-lg">
-              Pick a topic to practice. You will get structured feedback on how
-              you did.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {scenarios.map((scenario) => (
-              <button
-                key={scenario.id}
-                onClick={() => onPick(scenario)}
-                className="group text-left bg-white rounded-2xl p-6 border border-slate-200 hover:border-brand hover:shadow-xl transition-all hover:-translate-y-1"
-              >
-                <div className="text-xs uppercase tracking-wider font-bold text-brand mb-3">
-                  {scenario.subject}
-                </div>
-                <h3 className="font-display text-xl font-bold text-slate-900 mb-3 leading-tight">
-                  {scenario.topic}
-                </h3>
-                <p className="text-slate-600 text-sm leading-relaxed mb-6">
-                  {scenario.description}
-                </p>
-                <div className="flex items-center gap-2 text-sm font-semibold text-brand group-hover:gap-3 transition-all">
-                  Start this scenario
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 7l5 5m0 0l-5 5m5-5H6"
-                    />
-                  </svg>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function RatingBadge(props: RatingBadgeProps) {
-  const { rating } = props;
+function RatingBadge({ rating }: { rating: Rating }) {
   const band = RATING_BANDS[rating] ?? RATING_BANDS.developing;
   return (
     <span
