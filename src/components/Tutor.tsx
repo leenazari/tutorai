@@ -1,24 +1,41 @@
-
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
-import type { Feedback, Scenario, Stage } from "@/types";
+import type { Feedback, Scenario, Stage, StudentIdentity } from "@/types";
 
 interface TutorProps {
   scenario: Scenario;
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function Tutor({ scenario }: TutorProps) {
   const [stage, setStage] = useState<Stage>("welcome");
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [apiError, setApiError] = useState("");
+  const [identity, setIdentity] = useState<StudentIdentity | null>(null);
+  const [nameInput, setNameInput] = useState("");
+  const [emailInput, setEmailInput] = useState("");
+  const [formError, setFormError] = useState("");
 
   const tts = useSpeechSynthesis();
   const sr = useSpeechRecognition();
 
   const handleStart = () => {
+    const name = nameInput.trim();
+    const email = emailInput.trim();
+    if (!name) {
+      setFormError("Please enter your name.");
+      return;
+    }
+    if (!EMAIL_REGEX.test(email)) {
+      setFormError("Please enter a valid email address.");
+      return;
+    }
+    setFormError("");
+    setIdentity({ name, email });
     setStage("intro");
     tts.speak(scenario.introSpoken, () => setStage("ready"));
   };
@@ -39,23 +56,29 @@ export default function Tutor({ scenario }: TutorProps) {
           body: JSON.stringify({
             scenarioId: scenario.id,
             studentAnswer: text,
+            studentName: identity?.name,
+            studentEmail: identity?.email,
           }),
         });
         if (!response.ok) {
-          const errData = await response.json().catch(() => ({ error: "Unknown error" }));
-          throw new Error(errData.error || `Request failed with ${response.status}`);
+          const errData = await response
+            .json()
+            .catch(() => ({ error: "Unknown error" }));
+          throw new Error(
+            errData.error || `Request failed with ${response.status}`,
+          );
         }
         const data = (await response.json()) as { feedback: Feedback };
         setFeedback(data.feedback);
         setStage("feedback");
-        tts.speak(data.feedback.spokenSummary + " " + data.feedback.followUp);
+        tts.speak(data.feedback.student.spokenSummary);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Unknown error";
         setApiError(`Could not get feedback. ${message}`);
         setStage("ready");
       }
     },
-    [scenario.id, tts],
+    [scenario.id, tts, identity],
   );
 
   const handleRecord = () => {
@@ -93,6 +116,9 @@ export default function Tutor({ scenario }: TutorProps) {
     sr.hardReset();
     setFeedback(null);
     setApiError("");
+    setIdentity(null);
+    setNameInput("");
+    setEmailInput("");
     setStage("welcome");
   }, [tts, sr]);
 
@@ -121,6 +147,11 @@ export default function Tutor({ scenario }: TutorProps) {
           </div>
         </div>
         <div className="flex items-center gap-3 text-xs text-slate-500">
+          {identity && (
+            <div className="text-slate-600">
+              <span className="font-semibold">{identity.name}</span>
+            </div>
+          )}
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
             Live session
@@ -162,28 +193,76 @@ export default function Tutor({ scenario }: TutorProps) {
           </div>
 
           {stage === "welcome" && (
-            <div className="flex-1 flex flex-col items-center justify-center text-center">
-              <h1 className="font-display text-3xl font-bold mb-3">
-                Ready when you are.
-              </h1>
-              <p className="text-slate-300 max-w-md mb-8">
-                This is a one-question tutoring session. I&apos;ll show you a case brief,
-                ask you to talk it through, and give you structured feedback on what
-                you said.
-              </p>
-              <button
-                onClick={handleStart}
-                className="px-8 py-4 rounded-xl font-semibold text-white transition-all hover:scale-[1.02] shadow-lg bg-brand"
-                style={{ boxShadow: "0 10px 30px -10px #3366FF" }}
-              >
-                Start session
-              </button>
-              {!sr.supported && (
-                <p className="mt-6 text-amber-300 text-sm max-w-sm">
-                  Speech recognition not detected. Use Chrome or Edge for the full
-                  experience.
+            <div className="flex-1 flex flex-col items-center justify-center">
+              <div className="w-full max-w-md">
+                <h1 className="font-display text-3xl font-bold mb-3 text-center">
+                  Ready when you are.
+                </h1>
+                <p className="text-slate-300 mb-8 text-center">
+                  Enter your details to begin. Your session will be saved so your
+                  tutor can review your progress.
                 </p>
-              )}
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">
+                      Your name
+                    </label>
+                    <input
+                      type="text"
+                      value={nameInput}
+                      onChange={(e) => {
+                        setNameInput(e.target.value);
+                        setFormError("");
+                      }}
+                      placeholder="Lee Nazari"
+                      className="w-full px-4 py-3 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">
+                      Your email
+                    </label>
+                    <input
+                      type="email"
+                      value={emailInput}
+                      onChange={(e) => {
+                        setEmailInput(e.target.value);
+                        setFormError("");
+                      }}
+                      placeholder="you@example.com"
+                      className="w-full px-4 py-3 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 outline-none"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleStart();
+                      }}
+                    />
+                  </div>
+
+                  {formError && (
+                    <p className="text-amber-300 text-sm">{formError}</p>
+                  )}
+
+                  <button
+                    onClick={handleStart}
+                    className="w-full px-8 py-4 rounded-xl font-semibold text-white transition-all hover:scale-[1.02] shadow-lg bg-brand"
+                    style={{ boxShadow: "0 10px 30px -10px #3366FF" }}
+                  >
+                    Start session
+                  </button>
+
+                  <p className="text-xs text-slate-500 text-center pt-2">
+                    By continuing, you consent to your name, email, and spoken
+                    answer being saved for assessment purposes.
+                  </p>
+                </div>
+
+                {!sr.supported && (
+                  <p className="mt-6 text-amber-300 text-sm text-center">
+                    Speech recognition not detected. Use Chrome or Edge.
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
@@ -212,7 +291,9 @@ export default function Tutor({ scenario }: TutorProps) {
                 <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">
                   Your question
                 </div>
-                <p className="text-white leading-relaxed">{scenario.questionText}</p>
+                <p className="text-white leading-relaxed">
+                  {scenario.questionText}
+                </p>
               </div>
 
               <div className="flex flex-col items-center py-6">
@@ -227,11 +308,19 @@ export default function Tutor({ scenario }: TutorProps) {
                       }`}
                     >
                       {sr.listening ? (
-                        <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <svg
+                          className="w-8 h-8 text-white"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                        >
                           <rect x="6" y="6" width="12" height="12" rx="2" />
                         </svg>
                       ) : (
-                        <svg className="w-9 h-9" fill="currentColor" viewBox="0 0 24 24">
+                        <svg
+                          className="w-9 h-9"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                        >
                           <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" />
                         </svg>
                       )}
@@ -284,68 +373,88 @@ export default function Tutor({ scenario }: TutorProps) {
 
           {stage === "feedback" && feedback && (
             <div className="flex-1 flex flex-col overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-display font-semibold text-xl">Feedback</h2>
-                <RatingBadge rating={feedback.rating} />
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="font-display font-semibold text-xl">
+                  Your feedback
+                </h2>
+                <RatingBadge rating={feedback.student.rating} />
               </div>
 
-              {feedback.strengths && feedback.strengths.length > 0 && (
-                <div className="bg-emerald-900/20 border border-emerald-800/50 rounded-xl p-4 mb-4">
-                  <div className="text-xs uppercase tracking-wider text-emerald-300 font-semibold mb-2">
-                    What you got right
+              {feedback.student.strengths &&
+                feedback.student.strengths.length > 0 && (
+                  <div className="bg-emerald-900/20 border border-emerald-800/50 rounded-xl p-4 mb-4">
+                    <div className="text-xs uppercase tracking-wider text-emerald-300 font-semibold mb-2">
+                      What you did well
+                    </div>
+                    <ul className="space-y-2">
+                      {feedback.student.strengths.map((s, i) => (
+                        <li
+                          key={i}
+                          className="text-emerald-100 text-sm flex gap-2 leading-relaxed"
+                        >
+                          <span className="text-emerald-400 flex-shrink-0">✓</span>
+                          <span>{s}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <ul className="space-y-1.5">
-                    {feedback.strengths.map((s, i) => (
-                      <li key={i} className="text-emerald-100 text-sm flex gap-2">
-                        <span className="text-emerald-400 flex-shrink-0">✓</span>
-                        <span>{s}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+                )}
 
-              {feedback.missed && feedback.missed.length > 0 && (
-                <div className="bg-amber-900/20 border border-amber-800/50 rounded-xl p-4 mb-4">
-                  <div className="text-xs uppercase tracking-wider text-amber-300 font-semibold mb-2">
-                    Worth revisiting
+              {feedback.student.improvements &&
+                feedback.student.improvements.length > 0 && (
+                  <div className="bg-amber-900/20 border border-amber-800/50 rounded-xl p-4 mb-4">
+                    <div className="text-xs uppercase tracking-wider text-amber-300 font-semibold mb-2">
+                      Areas to improve
+                    </div>
+                    <ul className="space-y-2">
+                      {feedback.student.improvements.map((s, i) => (
+                        <li
+                          key={i}
+                          className="text-amber-100 text-sm flex gap-2 leading-relaxed"
+                        >
+                          <span className="text-amber-400 flex-shrink-0">→</span>
+                          <span>{s}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <ul className="space-y-1.5">
-                    {feedback.missed.map((s, i) => (
-                      <li key={i} className="text-amber-100 text-sm flex gap-2">
-                        <span className="text-amber-400 flex-shrink-0">→</span>
-                        <span>{s}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+                )}
 
-              {feedback.suggestion && (
-                <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 mb-4">
-                  <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">
-                    Tip
-                  </div>
-                  <p className="text-slate-200 text-sm">{feedback.suggestion}</p>
-                </div>
-              )}
-
-              {feedback.followUp && (
-                <div
-                  className="rounded-xl p-4 mb-4"
-                  style={{
-                    backgroundColor: "rgba(51, 102, 255, 0.15)",
-                    border: "1px solid rgba(51, 102, 255, 0.4)",
-                  }}
-                >
+              {feedback.student.actionPlan &&
+                feedback.student.actionPlan.length > 0 && (
                   <div
-                    className="text-xs uppercase tracking-wider font-semibold mb-2"
-                    style={{ color: "#9db5ff" }}
+                    className="rounded-xl p-4 mb-4"
+                    style={{
+                      backgroundColor: "rgba(51, 102, 255, 0.15)",
+                      border: "1px solid rgba(51, 102, 255, 0.4)",
+                    }}
                   >
-                    Tutor follow-up
+                    <div
+                      className="text-xs uppercase tracking-wider font-semibold mb-2"
+                      style={{ color: "#9db5ff" }}
+                    >
+                      Your action plan before next time
+                    </div>
+                    <ul className="space-y-2">
+                      {feedback.student.actionPlan.map((s, i) => (
+                        <li
+                          key={i}
+                          className="text-white text-sm flex gap-2 leading-relaxed"
+                        >
+                          <span className="text-blue-300 flex-shrink-0 font-bold">
+                            {i + 1}.
+                          </span>
+                          <span>{s}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <p className="text-white text-sm italic">
-                    &quot;{feedback.followUp}&quot;
+                )}
+
+              {feedback.student.encouragement && (
+                <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 mb-4">
+                  <p className="text-slate-200 text-sm italic">
+                    {feedback.student.encouragement}
                   </p>
                 </div>
               )}
@@ -358,9 +467,7 @@ export default function Tutor({ scenario }: TutorProps) {
                   Try again
                 </button>
                 <button
-                  onClick={() =>
-                    tts.speak(feedback.spokenSummary + " " + feedback.followUp)
-                  }
+                  onClick={() => tts.speak(feedback.student.spokenSummary)}
                   className="px-5 py-3 rounded-xl font-semibold bg-slate-700 text-white hover:bg-slate-600 transition-all"
                 >
                   Replay
@@ -391,7 +498,9 @@ export default function Tutor({ scenario }: TutorProps) {
                   {scenario.caseFile.title}
                 </span>
               </div>
-              <span className="text-xs text-slate-400 tracking-wider">CASE BRIEF</span>
+              <span className="text-xs text-slate-400 tracking-wider">
+                CASE BRIEF
+              </span>
             </div>
             <div className="p-6 space-y-5">
               <div>
@@ -445,7 +554,8 @@ export default function Tutor({ scenario }: TutorProps) {
               <li>· What should you do during the rest of the visit?</li>
               <li>· Who do you report to, and in what order?</li>
               <li>
-                · What frameworks apply (Care Act, MCA, Making Safeguarding Personal)?
+                · What frameworks apply (Care Act, MCA, Making Safeguarding
+                Personal)?
               </li>
             </ul>
           </div>
