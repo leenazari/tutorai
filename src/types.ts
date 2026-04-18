@@ -1,10 +1,22 @@
-
 export interface CaseFile {
   title: string;
   serviceUser: string;
   background: string;
   history: string;
   observations: string[];
+}
+
+export interface Competency {
+  id: string;
+  label: string;
+  lookFor: string;
+}
+
+export interface CompetencyScore {
+  competencyId: string;
+  label: string;
+  status: "met" | "partial" | "not_met";
+  justification: string;
 }
 
 export interface Scenario {
@@ -14,17 +26,35 @@ export interface Scenario {
   introSpoken: string;
   questionText: string;
   caseFile: CaseFile;
-  rubric: string;
+  competencies: Competency[];
   casePlainText: string;
 }
 
-export interface Feedback {
-  strengths: string[];
-  missed: string[];
-  suggestion: string;
-  followUp: string;
+export interface StudentFeedback {
   rating: "developing" | "good" | "excellent";
+  strengths: string[];
+  improvements: string[];
+  actionPlan: string[];
+  encouragement: string;
   spokenSummary: string;
+}
+
+export interface TeacherScoreCard {
+  rating: "developing" | "good" | "excellent";
+  totalPoints: number;
+  maxPoints: number;
+  competencyScores: CompetencyScore[];
+  overallSummary: string;
+}
+
+export interface Feedback {
+  student: StudentFeedback;
+  teacher: TeacherScoreCard;
+}
+
+export interface StudentIdentity {
+  name: string;
+  email: string;
 }
 
 export type Stage =
