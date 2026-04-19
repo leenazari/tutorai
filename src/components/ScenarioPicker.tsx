@@ -25,10 +25,7 @@ export default function ScenarioPicker(props: ScenarioPickerProps) {
             <div className="text-xs text-slate-500">Scenario-based training</div>
           </div>
         </div>
-        
-          href="/teacher"
-          className="text-xs text-slate-500 hover:text-slate-900 underline"
-        >
+        <a href="/teacher" className="text-xs text-slate-500 hover:text-slate-900 underline">
           Teacher login
         </a>
       </header>
@@ -40,8 +37,7 @@ export default function ScenarioPicker(props: ScenarioPickerProps) {
               Choose a scenario
             </h1>
             <p className="text-slate-600 text-lg">
-              Pick a topic to practice. You will get structured feedback on how
-              you did.
+              Pick a topic to practice. You will get structured feedback on how you did.
             </p>
           </div>
 
@@ -50,9 +46,7 @@ export default function ScenarioPicker(props: ScenarioPickerProps) {
               return (
                 <button
                   key={scenario.id}
-                  onClick={function () {
-                    onPick(scenario);
-                  }}
+                  onClick={function () { onPick(scenario); }}
                   className="group text-left bg-white rounded-2xl p-6 border border-slate-200 hover:border-brand hover:shadow-xl transition-all hover:-translate-y-1"
                 >
                   <div className="text-xs uppercase tracking-wider font-bold text-brand mb-3">
@@ -66,18 +60,8 @@ export default function ScenarioPicker(props: ScenarioPickerProps) {
                   </p>
                   <div className="flex items-center gap-2 text-sm font-semibold text-brand group-hover:gap-3 transition-all">
                     Start this scenario
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13 7l5 5m0 0l-5 5m5-5H6"
-                      />
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
                   </div>
                 </button>
