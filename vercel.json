@@ -1,0 +1,11 @@
+{
+  "regions": ["lhr1"],
+  "functions": {
+    "src/app/api/feedback/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/save-session/route.ts": {
+      "maxDuration": 10
+    }
+  }
+}

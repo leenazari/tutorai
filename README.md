@@ -1,51 +1,41 @@
-# Interviewa AI Tutor
+# Tutorai Speed Fixes
 
-AI voice tutor for scenario-based vocational training. Shows a case brief, listens to a spoken answer, and returns structured feedback using Claude. Current scenario: social care safeguarding home visit.
+This zip contains 2 files that will speed up your feedback API.
 
-Part of the Interviewa education product line, Innovation13.
+## Files
 
-## What it does
+```
+tutorai-speed-fixes/
+├── vercel.json                                  (NEW - goes at repo root)
+└── src/
+    └── app/
+        └── api/
+            └── feedback/
+                └── route.ts                     (REPLACES existing file)
+```
 
-The tutor voice introduces a scenario. The student reads the case brief on screen, taps the microphone, and speaks their answer. Claude evaluates the response against a rubric and returns strengths, gaps, a tip, a follow-up question, and an overall rating. The tutor reads the summary back aloud.
+## How to drop them in
 
-Results are always instant. No waiting, no processing delay visible to the student beyond the few seconds Claude takes to think.
+### Option A: Drag the folder contents into GitHub
 
-## Tech stack
+1. Go to https://github.com/leenazari/tutorai
+2. Click "Add file" -> "Upload files"
+3. Open the unzipped `tutorai-speed-fixes` folder on your computer
+4. Drag ALL the contents (both the `vercel.json` file AND the `src` folder) into the upload area in GitHub
+5. GitHub will preserve the folder structure and place files in the right locations
+6. Scroll down, commit changes
 
-- Next.js 14 with TypeScript and the App Router
-- Tailwind CSS for styling
-- Anthropic SDK, called server-side via a Next.js API route
-- Web Speech API for voice input and output in the browser
-- Hosted on Vercel
+### Option B: One file at a time
 
-## Running it
+If drag-and-drop is fiddly:
 
-This project is designed to run on Vercel. The Anthropic API key is stored as an environment variable in Vercel project settings, never in the code or the browser.
+1. Create `vercel.json` at repo root (Add file -> Create new file, name it "vercel.json", paste content)
+2. Replace `src/app/api/feedback/route.ts` (navigate to existing file, click pencil, replace content)
 
-## Scenarios
+## What changed and why
 
-Scenarios are currently defined in `src/lib/scenarios.ts`. One scenario is active: a social care safeguarding home visit. Each scenario contains a subject, topic, spoken intro, displayed question, case file for the right panel, and a rubric Claude uses to grade answers.
+1. **`vercel.json`** sets your serverless functions to run in London (`lhr1`) instead of US East. Cuts the network round-trip by 500ms+.
 
-To add a new scenario, edit that file and add a new entry to the `SCENARIOS` object.
+2. **`route.ts`** lowers `max_tokens` from 2500 to 1200 and tightens the prompt. Claude stops generating sooner and has less to read before it can start writing.
 
-## Current limitations
-
-- Browser text-to-speech, not ElevenLabs. Voice sounds synthetic.
-- No persistence. Session data is not saved.
-- Scenarios are hardcoded, no teacher authoring UI yet.
-- No student accounts, no progress tracking.
-- Anyone with the URL can use the feedback endpoint, which costs API credits.
-- Chrome and Edge only for voice input. Safari and Firefox do not fully support the Web Speech API.
-
-## Roadmap
-
-- ElevenLabs for natural tutor voice
-- Supabase for session persistence and scenario library
-- Teacher authoring screen for scenario creation
-- Student accounts and progress tracking
-- Rate limiting on the feedback endpoint before sharing publicly
-- Multiple scenarios with a picker
-
-## Licence
-
-All rights reserved. Innovation13 / Interviewa.
+Expected result: 10-15 seconds instead of 60.
