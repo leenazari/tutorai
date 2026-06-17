@@ -4,6 +4,7 @@ import { getScenarioById } from "@/lib/scenarios";
 import type { Feedback } from "@/types";
 
 export const runtime = "nodejs";
+export const maxDuration = 30;
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -38,49 +39,34 @@ export async function POST(request: Request) {
     }
 
     const competenciesText = scenario.competencies
-      .map(
-        (c, i) =>
-          `${i + 1}. [${c.id}] ${c.label}\n   Look for: ${c.lookFor}`,
-      )
-      .join("\n\n");
+      .map((c, i) => `${i + 1}. [${c.id}] ${c.label}: ${c.lookFor}`)
+      .join("\n");
 
     const maxPoints = scenario.competencies.length * 2;
 
     const prompt = `You are an AI tutor giving feedback to a learner studying ${scenario.subject}, on ${scenario.topic}.
 
-THE SCENARIO THEY WERE GIVEN:
+SCENARIO:
 ${scenario.casePlainText}
 
-THEY WERE ASKED: "${scenario.questionText}"
+QUESTION: "${scenario.questionText}"
 
-THEIR SPOKEN ANSWER (voice-transcribed, minor errors are fine):
+STUDENT ANSWER (voice transcribed):
 "${studentAnswer}"
 
-YOU MUST SCORE THEM AGAINST THESE SPECIFIC COMPETENCIES:
-
+SCORE THEM AGAINST THESE COMPETENCIES:
 ${competenciesText}
 
-For EACH competency, assign a status:
-- "met" (2 points) = clearly and substantially covered
-- "partial" (1 point) = touched on but incomplete, shallow, or unclear
-- "not_met" (0 points) = did not address at all
+For each competency: "met" (2pts), "partial" (1pt), "not_met" (0pts). Be strict but fair.
 
-Be strict but fair. If the student merely implied something without stating it, that is "partial" at most. Do not be generous for the sake of being kind. Teachers rely on accurate scoring.
+Calculate total out of ${maxPoints}, convert to percentage, map to rating:
+- 0-20%: "not_yet_ready"
+- 21-40%: "developing"
+- 41-60%: "competent"
+- 61-80%: "strong"
+- 81-100%: "excellent"
 
-Calculate total points out of ${maxPoints}. Convert to a percentage (totalPoints / ${maxPoints} * 100, rounded to an integer).
-
-Overall rating based on percentage:
-- "not_yet_ready" if 0 to 20 percent
-- "developing" if 21 to 40 percent
-- "competent" if 41 to 60 percent
-- "strong" if 61 to 80 percent
-- "excellent" if 81 to 100 percent
-
-Produce TWO outputs:
-1. TEACHER: structured per-competency breakdown with factual, concise justifications, and a 2 to 3 sentence teacher summary analysing where the student is and what they need next.
-2. STUDENT: warm, encouraging, plain-English summary. NO mention of competencies, points, scoring, or rating labels. Treat them as an adult learner, not a child. Specific, not generic.
-
-Respond with ONLY valid JSON in this exact shape. No preamble, no code fences, no em dashes anywhere:
+Output ONLY valid JSON. No code fences. No em dashes. Keep all strings concise.
 
 {
   "teacher": {
@@ -88,30 +74,25 @@ Respond with ONLY valid JSON in this exact shape. No preamble, no code fences, n
     "totalPoints": 0,
     "maxPoints": ${maxPoints},
     "competencyScores": [
-      {
-        "competencyId": "the id from the list above",
-        "label": "the label from the list above",
-        "status": "met",
-        "justification": "one short sentence explaining why"
-      }
+      {"competencyId": "id", "label": "label", "status": "met", "justification": "one short sentence"}
     ],
-    "overallSummary": "2 to 3 sentence teacher-facing analysis"
+    "overallSummary": "2 sentence teacher analysis"
   },
   "student": {
     "rating": "developing",
-    "strengths": ["specific warm observation, one sentence each, 2 to 4 items"],
-    "improvements": ["specific area to improve, phrased gently, one sentence each, 2 to 3 items"],
-    "actionPlan": ["concrete thing to review or practice before next attempt, one sentence each, 2 to 3 items"],
-    "encouragement": "one warm, genuine, not corny closing sentence",
-    "spokenSummary": "2 to 3 sentence summary the tutor reads aloud. British English, conversational, warm. Name one strength, gesture toward the action plan."
+    "strengths": ["1 sentence", "1 sentence"],
+    "improvements": ["1 sentence", "1 sentence"],
+    "actionPlan": ["1 sentence", "1 sentence"],
+    "encouragement": "1 warm sentence",
+    "spokenSummary": "2 sentence warm summary in British English"
   }
 }
 
-The rating in "student" must match the rating in "teacher". The competencyScores array must have exactly ${scenario.competencies.length} entries, one per competency, in the same order as listed above. The rating value must be exactly one of: "not_yet_ready", "developing", "competent", "strong", "excellent".`;
+competencyScores must have ${scenario.competencies.length} entries in the order listed. Rating must match between teacher and student.`;
 
     const response = await anthropic.messages.create({
       model: "claude-haiku-4-5",
-      max_tokens: 2500,
+      max_tokens: 1200,
       messages: [{ role: "user", content: prompt }],
     });
 
