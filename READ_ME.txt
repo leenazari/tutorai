@@ -1,16 +1,19 @@
-SCORECARD ON END SCREEN - one file change
-==========================================
+FULL-SCREEN BRANDED SCORECARD WITH DOWNLOAD - one file change
+==============================================================
 
-This replaces ONE file: src/components/Tutor.tsx
+Replaces ONE file: src/components/Tutor.tsx
 
 What changed:
-After the friendly summary (strengths, improvements, action plan), the
-student now also sees the FULL scorecard at the end of the assessment:
-- Overall percentage and rating band
-- Stage breakdown (3 bars)
-- Skill areas (the 6 categories)
-- Every competency mapped to its real framework (Care Certificate, Care
-  Act, NMC, NEWS2, etc) with met / partial / not met
+- The end-of-assessment scorecard now takes the FULL screen (the scenario
+  brief no longer sits next to it). The split screen is only used during
+  the three stages.
+- It uses the light brand theme from the mockup (white cards, #3366FF
+  brand blue), not the dark panel.
+- A DOWNLOAD button (top right and at the bottom) saves the scorecard as a
+  self-contained HTML file the student can keep or print.
+- Still includes everything: percentage and rating band, What you did well,
+  Areas to improve, encouragement, action plan, stage breakdown, the six
+  skill areas, and every competency mapped to its framework.
 
 HOW TO UPLOAD
 -------------
@@ -20,5 +23,5 @@ HOW TO UPLOAD
 4. It overwrites src/components/Tutor.tsx
 5. Commit
 
-Your new Vercel project (tutorai-gca2) will auto-build and deploy it.
-No database change, no other files. Tested with a full production build.
+tutorai-gca2 auto-builds and deploys. No database change, no other files.
+Tested with a full production build.
