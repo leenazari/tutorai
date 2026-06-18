@@ -11,8 +11,8 @@ import type {
   StudentIdentity,
   TranscriptTurn,
 } from "@/types";
-import { RATING_BANDS } from "@/lib/categories";
-import type { Rating } from "@/lib/categories";
+import { RATING_BANDS, CATEGORIES } from "@/lib/categories";
+import type { Rating, CategoryId } from "@/lib/categories";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TOTAL_STAGES = 3;
@@ -561,6 +561,98 @@ export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
                 </div>
               )}
 
+              <div className="mt-2 mb-4 border-t border-slate-700 pt-5">
+                <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-3">
+                  Your full scorecard
+                </div>
+
+                <div className="flex items-center gap-5 p-4 bg-slate-800 rounded-xl border border-slate-700 mb-4">
+                  <div>
+                    <div className="font-display text-4xl font-bold text-white leading-none">
+                      {feedback.teacher.percentage}%
+                    </div>
+                    <div className="text-xs text-slate-400 mt-1">
+                      {feedback.teacher.totalPoints} of {feedback.teacher.maxPoints} points
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <RatingBadge rating={feedback.teacher.rating} />
+                  </div>
+                </div>
+
+                {feedback.teacher.stageScores.length > 0 && (
+                  <div className="mb-4">
+                    <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">
+                      Stage breakdown
+                    </div>
+                    <div className="space-y-2">
+                      {feedback.teacher.stageScores.map((st) => (
+                        <div key={st.stage} className="bg-slate-800/60 rounded-lg p-3 border border-slate-700">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-sm text-slate-200">
+                              Stage {st.stage}: {st.title}
+                            </span>
+                            <span className="text-sm font-semibold text-white">{st.percentage}%</span>
+                          </div>
+                          <div className="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                            <div className="h-full rounded-full bg-brand" style={{ width: st.percentage + "%" }}></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {Object.keys(feedback.teacher.categoryScores).length > 0 && (
+                  <div className="mb-4">
+                    <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">
+                      Skill areas
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.entries(feedback.teacher.categoryScores).map((entry) => {
+                        const catId = entry[0] as CategoryId;
+                        const score = entry[1];
+                        return (
+                          <div key={catId} className="bg-slate-800/60 rounded-lg p-3 border border-slate-700">
+                            <div className="text-xs text-slate-400 mb-1">{CATEGORIES[catId] || catId}</div>
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="text-lg font-bold text-white">{score.percentage}%</span>
+                              <span className="text-xs text-slate-500">{score.points}/{score.max}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {feedback.teacher.competencyScores.length > 0 && (
+                  <div>
+                    <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">
+                      Mapped to standards
+                    </div>
+                    <div className="space-y-2">
+                      {feedback.teacher.competencyScores.map((c) => (
+                        <div key={c.competencyId} className="flex items-start gap-3 bg-slate-800/60 rounded-lg p-3 border border-slate-700">
+                          <StatusDot status={c.status} />
+                          <div className="flex-1">
+                            <div className="text-sm text-slate-100">{c.label}</div>
+                            {c.framework && (
+                              <div className="inline-block text-xs font-semibold mt-1 px-2 py-0.5 rounded" style={{ color: "#9db5ff", backgroundColor: "rgba(51,102,255,0.12)", border: "1px solid rgba(51,102,255,0.3)" }}>
+                                {c.framework}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-xs font-semibold text-slate-400 whitespace-nowrap">
+                            {c.status === "met" ? "2/2" : c.status === "partial" ? "1/2" : "0/2"}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="mt-4 flex gap-3">
                 <button
                   onClick={handleFullReset}
@@ -650,6 +742,16 @@ export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
       </div>
     </div>
   );
+}
+
+function StatusDot({ status }: { status: "met" | "partial" | "not_met" }) {
+  if (status === "met") {
+    return <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center flex-shrink-0 text-sm font-bold">+</div>;
+  }
+  if (status === "partial") {
+    return <div className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center flex-shrink-0 text-sm font-bold">~</div>;
+  }
+  return <div className="w-6 h-6 rounded-full bg-red-500/20 text-red-300 flex items-center justify-center flex-shrink-0 text-sm font-bold">x</div>;
 }
 
 function RatingBadge({ rating }: { rating: Rating }) {
