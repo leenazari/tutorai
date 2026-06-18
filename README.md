@@ -1,6 +1,6 @@
 # tutorai
 
-AI voice tutor for vocational training. Scenario-based spoken assessment with structured feedback.
+AI voice tutor for vocational training. Scenario-based spoken assessment with structured feedback
 
 Live at https://tutorai-red.vercel.app
 
