@@ -1,118 +1,36 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import ScenarioPicker from "@/components/ScenarioPicker";
-import type { Scenario, Stage, StudentIdentity } from "@/types";
+import type {
+  Feedback,
+  Scenario,
+  Stage,
+  StudentIdentity,
+  TranscriptTurn,
+} from "@/types";
 import { RATING_BANDS } from "@/lib/categories";
 import type { Rating } from "@/lib/categories";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-interface ParsedFeedback {
-  strengths: string[];
-  improvements: string[];
-  encouragement: string;
-  actionPlan: string[];
-  spoken: string;
-  data: {
-    rating: Rating;
-    totalPoints: number;
-    maxPoints: number;
-    competencyScores: Array<{
-      competencyId: string;
-      label: string;
-      status: "met" | "partial" | "not_met";
-      justification: string;
-    }>;
-    overallSummary: string;
-  } | null;
-}
-
-function sectionText(raw: string, start: string, ends: string[]): string {
-  const s = raw.indexOf(start);
-  if (s === -1) return "";
-  const from = s + start.length;
-  let to = raw.length;
-  for (const e of ends) {
-    const i = raw.indexOf(e, from);
-    if (i !== -1 && i < to) to = i;
-  }
-  return raw.slice(from, to);
-}
-
-function toLines(text: string): string[] {
-  return text
-    .split("\n")
-    .map((l) => l.replace(/^[-*\d.\s]+/, "").trim())
-    .filter((l) => l.length > 0 && !l.startsWith("#"));
-}
-
-function toBlock(text: string): string {
-  return text
-    .split("\n")
-    .filter((l) => !l.trim().startsWith("#"))
-    .join(" ")
-    .trim();
-}
-
-function parseStream(raw: string): ParsedFeedback {
-  const strengths = toLines(
-    sectionText(raw, "###STRENGTHS###", [
-      "###IMPROVEMENTS###",
-      "###ENCOURAGEMENT###",
-      "###ACTIONPLAN###",
-      "###SPOKEN###",
-      "###DATA###",
-    ]),
-  );
-  const improvements = toLines(
-    sectionText(raw, "###IMPROVEMENTS###", [
-      "###ENCOURAGEMENT###",
-      "###ACTIONPLAN###",
-      "###SPOKEN###",
-      "###DATA###",
-    ]),
-  );
-  const encouragement = toBlock(
-    sectionText(raw, "###ENCOURAGEMENT###", [
-      "###ACTIONPLAN###",
-      "###SPOKEN###",
-      "###DATA###",
-    ]),
-  );
-  const actionPlan = toLines(
-    sectionText(raw, "###ACTIONPLAN###", ["###SPOKEN###", "###DATA###"]),
-  );
-  const spoken = toBlock(sectionText(raw, "###SPOKEN###", ["###DATA###"]));
-
-  let data: ParsedFeedback["data"] = null;
-  const dIdx = raw.indexOf("###DATA###");
-  if (dIdx !== -1) {
-    const dataStr = raw.slice(dIdx + "###DATA###".length).trim();
-    if (dataStr) {
-      try {
-        data = JSON.parse(dataStr.replace(/```json|```/g, "").trim());
-      } catch {
-        data = null;
-      }
-    }
-  }
-
-  return { strengths, improvements, encouragement, actionPlan, spoken, data };
-}
+const TOTAL_STAGES = 3;
 
 export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
   const [stage, setStage] = useState<Stage>("pick");
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
-  const [streamRaw, setStreamRaw] = useState("");
+  const [currentStage, setCurrentStage] = useState(1);
+  const [currentQuestion, setCurrentQuestion] = useState("");
+  const [currentTitle, setCurrentTitle] = useState("");
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [apiError, setApiError] = useState("");
   const [identity, setIdentity] = useState<StudentIdentity | null>(null);
   const [nameInput, setNameInput] = useState("");
   const [emailInput, setEmailInput] = useState("");
   const [formError, setFormError] = useState("");
 
+  const transcriptRef = useRef<TranscriptTurn[]>([]);
   const tts = useSpeechSynthesis();
   const sr = useSpeechRecognition();
 
@@ -140,8 +58,17 @@ export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
     }
     setFormError("");
     setIdentity({ name, email });
+    transcriptRef.current = [];
+
+    const firstStage = selectedScenario.stages[0];
+    setCurrentStage(1);
+    setCurrentQuestion(firstStage.openingQuestion);
+    setCurrentTitle(firstStage.title);
     setStage("intro");
-    tts.speak(selectedScenario.introSpoken, () => setStage("ready"));
+    tts.speak(selectedScenario.introSpoken, () => {
+      setStage("ready");
+      tts.speak(firstStage.openingQuestion);
+    });
   };
 
   const handleSkipIntro = () => {
@@ -149,97 +76,115 @@ export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
     setStage("ready");
   };
 
-  const submitAnswer = useCallback(
-    async (text: string) => {
+  const goToScoring = useCallback(
+    async (fullTranscript: TranscriptTurn[]) => {
       if (!selectedScenario || !identity) return;
       setStage("processing");
       setApiError("");
-      setStreamRaw("");
       try {
-        const response = await fetch("/api/feedback", {
+        const response = await fetch("/api/score", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             scenarioId: selectedScenario.id,
-            studentAnswer: text,
+            transcript: fullTranscript,
             studentName: identity.name,
             studentEmail: identity.email,
           }),
         });
-
-        if (!response.ok || !response.body) {
+        if (!response.ok) {
           const errData = await response
             .json()
             .catch(() => ({ error: "Unknown error" }));
-          throw new Error(
-            errData.error || `Request failed with ${response.status}`,
-          );
+          throw new Error(errData.error || `Request failed with ${response.status}`);
+        }
+        const data = (await response.json()) as { feedback: Feedback };
+        setFeedback(data.feedback);
+        setStage("scorecard");
+        if (data.feedback.student.spokenSummary) {
+          tts.speak(data.feedback.student.spokenSummary);
         }
 
-        setStage("feedback");
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let acc = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          acc += decoder.decode(value, { stream: true });
-          setStreamRaw(acc);
-        }
-        acc += decoder.decode();
-        setStreamRaw(acc);
-
-        const finalParsed = parseStream(acc);
-
-        if (finalParsed.spoken) {
-          tts.speak(finalParsed.spoken);
-        }
-
-        if (finalParsed.data) {
-          const competencyCategories: Record<string, string> = {};
-          for (const comp of selectedScenario.competencies) {
-            competencyCategories[comp.id] = comp.category;
-          }
-          const feedbackForSave = {
-            teacher: {
-              rating: finalParsed.data.rating,
-              totalPoints: finalParsed.data.totalPoints,
-              maxPoints: finalParsed.data.maxPoints,
-              competencyScores: finalParsed.data.competencyScores,
-              overallSummary: finalParsed.data.overallSummary,
-            },
-            student: {
-              rating: finalParsed.data.rating,
-              strengths: finalParsed.strengths,
-              improvements: finalParsed.improvements,
-              actionPlan: finalParsed.actionPlan,
-              encouragement: finalParsed.encouragement,
-              spokenSummary: finalParsed.spoken,
-            },
-          };
-          fetch("/api/save-session", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              scenarioId: selectedScenario.id,
-              scenarioSubject: selectedScenario.subject,
-              scenarioTopic: selectedScenario.topic,
-              studentName: identity.name,
-              studentEmail: identity.email,
-              studentAnswer: text,
-              feedback: feedbackForSave,
-              competencyCategories,
-            }),
-          }).catch((err) => console.error("Save session failed:", err));
-        }
+        fetch("/api/save-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scenarioId: selectedScenario.id,
+            scenarioSubject: selectedScenario.subject,
+            scenarioTopic: selectedScenario.topic,
+            studentName: identity.name,
+            studentEmail: identity.email,
+            transcript: fullTranscript,
+            feedback: data.feedback,
+          }),
+        }).catch((err) => console.error("Save session failed:", err));
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Unknown error";
-        setApiError(`Could not get feedback. ${message}`);
+        setApiError(`Could not generate your scorecard. ${message}`);
         setStage("ready");
       }
     },
-    [selectedScenario, tts, identity],
+    [selectedScenario, identity, tts],
+  );
+
+  const goToNextStage = useCallback(
+    async (nextStage: number, fullTranscript: TranscriptTurn[]) => {
+      if (!selectedScenario) return;
+      setStage("processing");
+      setApiError("");
+      try {
+        const response = await fetch("/api/next-question", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scenarioId: selectedScenario.id,
+            nextStage,
+            transcript: fullTranscript,
+          }),
+        });
+        if (!response.ok) {
+          const errData = await response
+            .json()
+            .catch(() => ({ error: "Unknown error" }));
+          throw new Error(errData.error || `Request failed with ${response.status}`);
+        }
+        const data = (await response.json()) as {
+          question: string;
+          title: string;
+          stage: number;
+        };
+        setCurrentStage(nextStage);
+        setCurrentQuestion(data.question);
+        setCurrentTitle(data.title);
+        setStage("ready");
+        tts.speak(data.question);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        setApiError(`Could not continue the assessment. ${message}`);
+        setStage("ready");
+      }
+    },
+    [selectedScenario, tts],
+  );
+
+  const submitStageAnswer = useCallback(
+    (answer: string) => {
+      const turn: TranscriptTurn = {
+        stage: currentStage,
+        title: currentTitle,
+        question: currentQuestion,
+        answer,
+      };
+      const updated = [...transcriptRef.current, turn];
+      transcriptRef.current = updated;
+
+      if (currentStage < TOTAL_STAGES) {
+        goToNextStage(currentStage + 1, updated);
+      } else {
+        goToScoring(updated);
+      }
+    },
+    [currentStage, currentTitle, currentQuestion, goToNextStage, goToScoring],
   );
 
   const handleRecord = () => {
@@ -257,7 +202,7 @@ export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
         return;
       }
       setApiError("");
-      submitAnswer(usable);
+      submitStageAnswer(usable);
     } else {
       tts.stopSpeaking();
       setApiError("");
@@ -266,21 +211,23 @@ export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
     }
   };
 
-  const handleRetrySameScenario = () => {
-    tts.stopSpeaking();
-    setStreamRaw("");
-    setStage("ready");
+  const handleReplayQuestion = () => {
+    if (currentQuestion) tts.speak(currentQuestion);
   };
 
   const handleFullReset = useCallback(() => {
     tts.stopSpeaking();
     sr.hardReset();
-    setStreamRaw("");
+    transcriptRef.current = [];
+    setFeedback(null);
     setApiError("");
     setIdentity(null);
     setNameInput("");
     setEmailInput("");
     setSelectedScenario(null);
+    setCurrentStage(1);
+    setCurrentQuestion("");
+    setCurrentTitle("");
     setStage("pick");
   }, [tts, sr]);
 
@@ -299,9 +246,6 @@ export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
   if (!selectedScenario) {
     return null;
   }
-
-  const parsed = parseStream(streamRaw);
-  const streaming = stage === "feedback" && !parsed.data;
 
   return (
     <div className="h-screen flex flex-col bg-slate-50">
@@ -325,16 +269,17 @@ export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
               <span className="font-semibold">{identity.name}</span>
             </div>
           )}
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            Live session
-          </div>
+          {(stage === "ready" || stage === "listening" || stage === "processing") && (
+            <div className="px-2.5 py-1 rounded-full bg-blue-50 text-brand font-semibold">
+              Stage {currentStage} of {TOTAL_STAGES}
+            </div>
+          )}
           <button
             onClick={handleFullReset}
             className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors"
-            title="Pick another topic"
+            title="Start over"
           >
-            Pick topic
+            Restart
           </button>
         </div>
       </header>
@@ -350,7 +295,7 @@ export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
               </svg>
             </div>
             <div>
-              <div className="font-display font-semibold text-lg">Your AI Tutor</div>
+              <div className="font-display font-semibold text-lg">Your AI Assessor</div>
               <div className="text-sm text-slate-400">
                 {tts.speaking
                   ? "Speaking..."
@@ -358,9 +303,7 @@ export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
                     ? "Listening..."
                     : stage === "processing"
                       ? "Thinking..."
-                      : streaming
-                        ? "Responding..."
-                        : "Ready"}
+                      : "Ready"}
               </div>
             </div>
           </div>
@@ -372,8 +315,8 @@ export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
                   Ready when you are.
                 </h1>
                 <p className="text-slate-300 mb-8 text-center">
-                  Enter your details to begin. Your session will be saved so your
-                  tutor can review your progress.
+                  This is a three stage assessment. Enter your details to begin.
+                  Your responses will be saved so your tutor can review them.
                 </p>
 
                 <div className="space-y-4">
@@ -421,19 +364,19 @@ export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
                     className="w-full px-8 py-4 rounded-xl font-semibold text-white transition-all hover:scale-[1.02] shadow-lg bg-brand"
                     style={{ boxShadow: "0 10px 30px -10px #3366FF" }}
                   >
-                    Start session
+                    Begin assessment
                   </button>
 
                   <button
                     onClick={handleBackToPicker}
                     className="w-full text-sm text-slate-400 hover:text-white underline pt-2"
                   >
-                    Change topic
+                    Change scenario
                   </button>
 
                   <p className="text-xs text-slate-500 text-center pt-2">
                     By continuing, you consent to your name, email, and spoken
-                    answer being saved for assessment purposes.
+                    answers being saved for assessment purposes.
                   </p>
                 </div>
 
@@ -468,12 +411,18 @@ export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
           {(stage === "ready" || stage === "listening") && (
             <div className="flex-1 flex flex-col">
               <div className="bg-slate-800 rounded-xl p-5 mb-6 border border-slate-700">
-                <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">
-                  Your question
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs uppercase tracking-wider text-brand font-semibold">
+                    Stage {currentStage}: {currentTitle}
+                  </div>
+                  <button
+                    onClick={handleReplayQuestion}
+                    className="text-xs text-slate-400 hover:text-white underline"
+                  >
+                    Replay
+                  </button>
                 </div>
-                <p className="text-white leading-relaxed">
-                  {selectedScenario.questionText}
-                </p>
+                <p className="text-white leading-relaxed">{currentQuestion}</p>
               </div>
 
               <div className="flex flex-col items-center py-6">
@@ -535,36 +484,28 @@ export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
                 <span className="w-3 h-3 rounded-full bg-white animate-bounce"></span>
                 <span className="w-3 h-3 rounded-full bg-white animate-bounce"></span>
               </div>
-              <p className="text-slate-300">Reviewing your answer...</p>
+              <p className="text-slate-300">
+                {currentStage < TOTAL_STAGES
+                  ? "Considering your answer..."
+                  : "Assessing your responses across all three stages..."}
+              </p>
             </div>
           )}
 
-          {stage === "feedback" && (
+          {stage === "scorecard" && feedback && (
             <div className="flex-1 flex flex-col overflow-y-auto">
               <div className="flex items-center justify-between mb-5">
                 <h2 className="font-display font-semibold text-xl">Your feedback</h2>
-                {parsed.data ? (
-                  <RatingBadge rating={parsed.data.rating} />
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce"></span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce"></span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce"></span>
-                  </span>
-                )}
+                <RatingBadge rating={feedback.student.rating} />
               </div>
 
-              {parsed.strengths.length === 0 && streaming && (
-                <p className="text-slate-400 text-sm">Your tutor is responding...</p>
-              )}
-
-              {parsed.strengths.length > 0 && (
+              {feedback.student.strengths.length > 0 && (
                 <div className="bg-emerald-900/20 border border-emerald-800/50 rounded-xl p-4 mb-4">
                   <div className="text-xs uppercase tracking-wider text-emerald-300 font-semibold mb-2">
                     What you did well
                   </div>
                   <ul className="space-y-2">
-                    {parsed.strengths.map((s, i) => (
+                    {feedback.student.strengths.map((s, i) => (
                       <li key={i} className="text-emerald-100 text-sm flex gap-2 leading-relaxed">
                         <span className="text-emerald-400 flex-shrink-0">+</span>
                         <span>{s}</span>
@@ -574,13 +515,13 @@ export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
                 </div>
               )}
 
-              {parsed.improvements.length > 0 && (
+              {feedback.student.improvements.length > 0 && (
                 <div className="bg-amber-900/20 border border-amber-800/50 rounded-xl p-4 mb-4">
                   <div className="text-xs uppercase tracking-wider text-amber-300 font-semibold mb-2">
                     Areas to improve
                   </div>
                   <ul className="space-y-2">
-                    {parsed.improvements.map((s, i) => (
+                    {feedback.student.improvements.map((s, i) => (
                       <li key={i} className="text-amber-100 text-sm flex gap-2 leading-relaxed">
                         <span className="text-amber-400 flex-shrink-0">&gt;</span>
                         <span>{s}</span>
@@ -590,15 +531,15 @@ export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
                 </div>
               )}
 
-              {parsed.encouragement && (
+              {feedback.student.encouragement && (
                 <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 mb-4">
                   <p className="text-slate-200 text-sm italic">
-                    {parsed.encouragement}
+                    {feedback.student.encouragement}
                   </p>
                 </div>
               )}
 
-              {parsed.actionPlan.length > 0 && (
+              {feedback.student.actionPlan.length > 0 && (
                 <div
                   className="rounded-xl p-4 mb-4"
                   style={{ backgroundColor: "rgba(51, 102, 255, 0.15)", border: "1px solid rgba(51, 102, 255, 0.4)" }}
@@ -610,7 +551,7 @@ export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
                     Your action plan before next time
                   </div>
                   <ul className="space-y-2">
-                    {parsed.actionPlan.map((s, i) => (
+                    {feedback.student.actionPlan.map((s, i) => (
                       <li key={i} className="text-white text-sm flex gap-2 leading-relaxed">
                         <span className="text-blue-300 flex-shrink-0 font-bold">{i + 1}.</span>
                         <span>{s}</span>
@@ -620,30 +561,22 @@ export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
                 </div>
               )}
 
-              {!streaming && (
-                <div className="mt-4 flex gap-3">
-                  <button
-                    onClick={handleRetrySameScenario}
-                    className="flex-1 px-5 py-3 rounded-xl font-semibold text-white transition-all hover:scale-[1.02] bg-brand"
-                  >
-                    Try again
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (parsed.spoken) tts.speak(parsed.spoken);
-                    }}
-                    className="px-5 py-3 rounded-xl font-semibold bg-slate-700 text-white hover:bg-slate-600 transition-all"
-                  >
-                    Replay
-                  </button>
-                  <button
-                    onClick={handleFullReset}
-                    className="px-5 py-3 rounded-xl font-semibold bg-slate-700 text-white hover:bg-slate-600 transition-all"
-                  >
-                    New topic
-                  </button>
-                </div>
-              )}
+              <div className="mt-4 flex gap-3">
+                <button
+                  onClick={handleFullReset}
+                  className="flex-1 px-5 py-3 rounded-xl font-semibold text-white transition-all hover:scale-[1.02] bg-brand"
+                >
+                  Try another scenario
+                </button>
+                <button
+                  onClick={() => {
+                    if (feedback.student.spokenSummary) tts.speak(feedback.student.spokenSummary);
+                  }}
+                  className="px-5 py-3 rounded-xl font-semibold bg-slate-700 text-white hover:bg-slate-600 transition-all"
+                >
+                  Replay
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -656,9 +589,7 @@ export default function Tutor({ scenarios }: { scenarios: Scenario[] }) {
             <h2 className="font-display text-2xl font-bold text-slate-900">
               {selectedScenario.subject}
             </h2>
-            <p className="text-slate-600 text-sm mt-1">
-              {selectedScenario.topic}
-            </p>
+            <p className="text-slate-600 text-sm mt-1">{selectedScenario.topic}</p>
           </div>
 
           <div className="bg-white rounded-xl overflow-hidden shadow-xl border border-slate-200">

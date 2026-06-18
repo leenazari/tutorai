@@ -1,46 +1,64 @@
-# Tutorai Streaming Upgrade
+# Tutorai 3-Stage Assessment Upgrade
 
-This makes feedback appear progressively (word by word) instead of all at once after a long wait. Total time is similar, but it FEELS far faster because the student sees text within 1-2 seconds.
+This turns each scenario into a three stage adaptive role play that ends with a full scorecard, mapped to real UK assessment frameworks (Care Certificate, Care Act, Mental Capacity Act, NMC, NEWS2).
 
-## Files in this zip
+## IMPORTANT: the database is already done
+
+I have already added the new database columns to your Supabase project (stage_scores, transcript, framework, stage). You do NOT need to touch Supabase. Just upload these files.
+
+## Files in this zip (10 files, all in the src folder)
 
 ```
-tutorai-streaming/
-├── vercel.json                              (NEW - repo root, London region)
-└── src/
-    ├── app/
-    │   └── api/
-    │       └── feedback/
-    │           └── route.ts                 (REPLACES - now streams)
-    └── components/
-        └── Tutor.tsx                        (REPLACES - reads the stream live)
+src/
+├── types.ts                                    REPLACES
+├── lib/
+│   └── scenarios.ts                            REPLACES (now has 3 stages + framework refs)
+├── components/
+│   └── Tutor.tsx                               REPLACES (3-stage state machine)
+└── app/
+    ├── teacher/
+    │   └── page.tsx                            REPLACES (stages, frameworks, transcript)
+    └── api/
+        ├── feedback/route.ts                   REPLACES (now a harmless stub, replaced by score)
+        ├── next-question/route.ts              NEW (adaptive question generator)
+        ├── score/route.ts                      NEW (full scorecard engine)
+        └── teacher/
+            ├── sessions/route.ts               NEW (correct /api location)
+            └── competencies/route.ts           NEW (correct /api location)
 ```
 
-## How to drop them in
+## How to install
 
 1. Unzip this folder on your computer
 2. Go to https://github.com/leenazari/tutorai
 3. Click "Add file" then "Upload files"
-4. Drag ALL the contents (the `vercel.json` file AND the `src` folder) into the upload box
-5. GitHub keeps the folder structure and overwrites the two existing files plus adds vercel.json
+4. Drag the whole `src` folder into the upload box
+5. GitHub keeps the structure, overwrites the changed files, and adds the new ones
 6. Scroll down, commit changes
-7. Wait about 90 seconds for Vercel to redeploy, then test
+7. Wait about 2 minutes for Vercel to redeploy
 
-## What changed
+That is the only required step. The build has been tested end to end and passes.
 
-1. **route.ts** now uses Anthropic streaming. Instead of waiting for the whole response, it sends text as Claude writes it. The feedback is formatted with section markers (STRENGTHS, IMPROVEMENTS, etc) followed by a compact JSON data block at the end for the teacher dashboard.
+## Optional tidy-up (not required, will not break anything)
 
-2. **Tutor.tsx** reads the stream and renders each section the moment it arrives. The student sees "What you did well" fill in first, then "Areas to improve", and so on. The rating badge and voice playback happen once the full response lands.
+Your repo currently has two route files in the wrong place (left over from earlier). They are now dead and unused, replaced by the correct ones under api/teacher. If you want a clean repo you can delete these two files in the GitHub web UI (open the file, click the bin icon, commit):
 
-3. **vercel.json** pins functions to London for lower latency (include it even if you already added it before, it will just overwrite with the same content).
+- src/app/teacher/sessions/route.ts
+- src/app/teacher/competencies/route.ts
 
-## What to expect
+Leaving them does no harm. They are just unused endpoints.
 
-- First words appear in 1-2 seconds
-- Sections fill in progressively over the next several seconds
-- Voice plays once the full response is ready
-- Teacher dashboard still gets the full scoring (saved silently at the end)
+## What changed for the user
 
-## If it does NOT stream (shows everything at once after a pause)
+- Each scenario now runs as THREE stages. Stage 1 is the same for every candidate (fair assessment). Stages 2 and 3 adapt their wording to what the candidate just said, so it feels like a real conversation, but everyone is still assessed on the same competencies.
+- After stage 3, the candidate sees the friendly summary (strengths, improvements, encouragement, action plan).
+- The teacher dashboard now shows the overall band, a per-stage breakdown, the 6 category scores, every competency tagged to its real framework reference, and the full three-stage transcript.
 
-That means something is buffering the response. Tell Claude in the chat and we can adjust the headers or runtime. The most common fix is already in place (no-transform cache header plus X-Accel-Buffering off), so it should work, but Vercel behaviour can vary.
+## Cost note
+
+Each full assessment now makes 3 AI calls (2 adaptive questions on Haiku, 1 scorecard on Haiku) instead of 1. That is roughly 1.5 to 2 pence per assessment, up from about half a penny. Still very cheap. The rate limiter is still on the to-do list and matters a little more now.
+
+## Models used
+
+- Adaptive questions: Claude Haiku 4.5 (fast, short)
+- Scorecard: Claude Haiku 4.5 (the AI only judges met/partial/not_met and writes the summary; all the maths and framework mapping is done in code, so the scores are deterministic and the framework references are always correct)

@@ -1,14 +1,9 @@
 import { NextResponse } from "next/server";
 import { supabaseServer, isSupabaseConfigured } from "@/lib/supabase";
-import type { Feedback } from "@/types";
+import type { Feedback, TranscriptTurn } from "@/types";
 
 export const runtime = "nodejs";
-
-interface CategoryScoreBucket {
-  points: number;
-  max: number;
-  percentage: number | null;
-}
+export const maxDuration = 10;
 
 interface SaveSessionRequest {
   scenarioId: string;
@@ -16,9 +11,8 @@ interface SaveSessionRequest {
   scenarioTopic: string;
   studentName: string;
   studentEmail: string;
-  studentAnswer: string;
+  transcript: TranscriptTurn[];
   feedback: Feedback;
-  competencyCategories: Record<string, string>;
 }
 
 export async function POST(request: Request) {
@@ -37,9 +31,8 @@ export async function POST(request: Request) {
       scenarioTopic,
       studentName,
       studentEmail,
-      studentAnswer,
+      transcript,
       feedback,
-      competencyCategories,
     } = body;
 
     if (!studentEmail || !studentName) {
@@ -66,26 +59,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const pct = feedback.teacher.maxPoints > 0
-      ? Math.round((feedback.teacher.totalPoints / feedback.teacher.maxPoints) * 100)
-      : 0;
-
-    const categoryScores: Record<string, CategoryScoreBucket> = {};
-
-    for (const score of feedback.teacher.competencyScores) {
-      const category = competencyCategories[score.competencyId] || "subject_knowledge";
-      if (!categoryScores[category]) {
-        categoryScores[category] = { points: 0, max: 0, percentage: null };
-      }
-      const pts = score.status === "met" ? 2 : score.status === "partial" ? 1 : 0;
-      categoryScores[category].points += pts;
-      categoryScores[category].max += 2;
-    }
-
-    for (const cat of Object.keys(categoryScores)) {
-      const c = categoryScores[cat];
-      c.percentage = c.max > 0 ? Math.round((c.points / c.max) * 100) : null;
-    }
+    const teacher = feedback.teacher;
+    const combinedAnswer = (transcript || [])
+      .map((t) => `Stage ${t.stage}: ${t.answer}`)
+      .join("\n\n");
 
     const { data: session, error: sessionError } = await supabaseServer
       .from("sessions")
@@ -94,17 +71,19 @@ export async function POST(request: Request) {
         scenario_id: scenarioId,
         scenario_subject: scenarioSubject,
         scenario_topic: scenarioTopic,
-        student_answer: studentAnswer,
-        rating: feedback.teacher.rating,
-        total_points: feedback.teacher.totalPoints,
-        max_points: feedback.teacher.maxPoints,
-        percentage: pct,
-        teacher_summary: feedback.teacher.overallSummary,
+        student_answer: combinedAnswer,
+        rating: teacher.rating,
+        total_points: teacher.totalPoints,
+        max_points: teacher.maxPoints,
+        percentage: teacher.percentage,
+        teacher_summary: teacher.overallSummary,
         student_strengths: feedback.student.strengths,
         student_improvements: feedback.student.improvements,
         student_action_plan: feedback.student.actionPlan,
         student_encouragement: feedback.student.encouragement,
-        category_scores: categoryScores,
+        category_scores: teacher.categoryScores,
+        stage_scores: teacher.stageScores,
+        transcript: transcript || [],
       })
       .select()
       .single();
@@ -117,11 +96,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const scoreRows = feedback.teacher.competencyScores.map((cs) => ({
+    const scoreRows = teacher.competencyScores.map((cs) => ({
       session_id: session.id,
       competency_id: cs.competencyId,
       label: cs.label,
-      category: competencyCategories[cs.competencyId] || "subject_knowledge",
+      category: cs.category,
+      framework: cs.framework,
+      stage: cs.stage,
       status: cs.status,
       points: cs.status === "met" ? 2 : cs.status === "partial" ? 1 : 0,
       justification: cs.justification,

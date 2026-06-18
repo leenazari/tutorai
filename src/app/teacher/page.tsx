@@ -4,6 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { RATING_BANDS, CATEGORIES } from "@/lib/categories";
 import type { Rating, CategoryId } from "@/lib/categories";
 
+type StageScore = { stage: number; title: string; percentage: number; points: number; max: number };
+type TranscriptTurn = { stage: number; title: string; question: string; answer: string };
+type CategoryScore = { points: number; max: number; percentage: number | null };
+
 type SessionRow = {
   id: string;
   student_id: string;
@@ -18,7 +22,9 @@ type SessionRow = {
   max_points: number;
   teacher_summary: string | null;
   student_answer: string;
-  category_scores: Record<string, { points: number; max: number; percentage: number | null }>;
+  category_scores: Record<string, CategoryScore>;
+  stage_scores: StageScore[];
+  transcript: TranscriptTurn[];
   created_at: string;
 };
 
@@ -27,6 +33,8 @@ type CompetencyScoreRow = {
   competency_id: string;
   label: string;
   category: string;
+  framework: string | null;
+  stage: number | null;
   status: "met" | "partial" | "not_met";
   points: number;
   justification: string | null;
@@ -122,7 +130,7 @@ export default function TeacherDashboard() {
             </div>
           </div>
           <p className="text-sm text-slate-600 mb-5">
-            Enter the teacher password to view student sessions and scores.
+            Enter the teacher password to view student assessments and scores.
           </p>
           <input
             type="password"
@@ -157,7 +165,7 @@ export default function TeacherDashboard() {
           </div>
           <div>
             <div className="font-display font-semibold text-slate-900 text-sm">Teacher Dashboard</div>
-            <div className="text-xs text-slate-500">{sessions.length} sessions</div>
+            <div className="text-xs text-slate-500">{sessions.length} assessments</div>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -185,8 +193,8 @@ export default function TeacherDashboard() {
 
         {sessions.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-            <h2 className="font-display text-xl font-bold text-slate-900 mb-2">No sessions yet</h2>
-            <p className="text-slate-600 text-sm">Once students complete sessions, they will appear here.</p>
+            <h2 className="font-display text-xl font-bold text-slate-900 mb-2">No assessments yet</h2>
+            <p className="text-slate-600 text-sm">Once students complete an assessment, it will appear here.</p>
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
@@ -249,8 +257,8 @@ export default function TeacherDashboard() {
   );
 }
 
-function RatingPill(props: { rating: Rating }) {
-  const band = RATING_BANDS[props.rating] ?? RATING_BANDS.developing;
+function RatingPill({ rating }: { rating: Rating }) {
+  const band = RATING_BANDS[rating] ?? RATING_BANDS.developing;
   return (
     <span className={"inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border " + band.bgLight + " " + band.textLight + " " + band.borderLight}>
       {band.label}
@@ -258,16 +266,27 @@ function RatingPill(props: { rating: Rating }) {
   );
 }
 
-function SessionDetail(props: {
+function StatusDot({ status }: { status: "met" | "partial" | "not_met" }) {
+  if (status === "met") {
+    return <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0 text-sm font-bold">+</div>;
+  }
+  if (status === "partial") {
+    return <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center flex-shrink-0 text-sm font-bold">~</div>;
+  }
+  return <div className="w-6 h-6 rounded-full bg-red-100 text-red-700 flex items-center justify-center flex-shrink-0 text-sm font-bold">x</div>;
+}
+
+function SessionDetail({
+  session,
+  competencies,
+  loading,
+  onClose,
+}: {
   session: SessionRow;
   competencies: CompetencyScoreRow[];
   loading: boolean;
   onClose: () => void;
 }) {
-  const session = props.session;
-  const competencies = props.competencies;
-  const loading = props.loading;
-  const onClose = props.onClose;
   const band = RATING_BANDS[session.rating] ?? RATING_BANDS.developing;
 
   return (
@@ -289,7 +308,7 @@ function SessionDetail(props: {
           <div className="flex items-center gap-6 p-5 bg-slate-50 rounded-xl border border-slate-200">
             <div>
               <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">Overall score</div>
-              <div className="font-display text-3xl font-bold text-slate-900">{session.percentage}%</div>
+              <div className="font-display text-3xl font-bold text-brand">{session.percentage}%</div>
               <div className="text-sm text-slate-500">{session.total_points}/{session.max_points} points</div>
             </div>
             <div className="flex-1">
@@ -299,9 +318,28 @@ function SessionDetail(props: {
             </div>
           </div>
 
+          {session.stage_scores && session.stage_scores.length > 0 && (
+            <div>
+              <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3">Stage breakdown</div>
+              <div className="grid grid-cols-3 gap-3">
+                {session.stage_scores.map((st) => (
+                  <div key={st.stage} className="border border-slate-200 rounded-xl p-4">
+                    <div className="text-xs font-bold text-brand uppercase tracking-wider">Stage {st.stage}</div>
+                    <div className="text-sm font-bold text-slate-900 mt-1 mb-2">{st.title}</div>
+                    <div className="text-2xl font-bold text-slate-900">{st.percentage}%</div>
+                    <div className="text-xs text-slate-500">{st.points}/{st.max} points</div>
+                    <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden">
+                      <div className="h-full rounded-full bg-brand" style={{ width: st.percentage + "%" }}></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {session.teacher_summary && (
             <div>
-              <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-2">Teacher summary</div>
+              <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-2">Assessor summary</div>
               <p className="text-slate-800 text-sm leading-relaxed">{session.teacher_summary}</p>
             </div>
           )}
@@ -338,7 +376,7 @@ function SessionDetail(props: {
           </div>
 
           <div>
-            <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3">Per-competency breakdown</div>
+            <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3">Competency detail with framework mapping</div>
             {loading ? (
               <p className="text-sm text-slate-500">Loading competencies...</p>
             ) : (
@@ -347,11 +385,14 @@ function SessionDetail(props: {
                   <div key={c.id} className="flex items-start gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
                     <StatusDot status={c.status} />
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-slate-900 text-sm">{c.label}</span>
-                        <span className="text-xs text-slate-500">({CATEGORIES[c.category as CategoryId] || c.category})</span>
-                      </div>
-                      {c.justification && <p className="text-slate-600 text-xs leading-relaxed">{c.justification}</p>}
+                      <div className="font-semibold text-slate-900 text-sm">{c.label}</div>
+                      {c.framework && (
+                        <div className="inline-block text-xs font-semibold text-brand bg-indigo-50 border border-indigo-200 rounded px-2 py-0.5 my-1">
+                          {c.framework}
+                        </div>
+                      )}
+                      {c.justification && <div className="text-slate-600 text-xs leading-relaxed">{c.justification}</div>}
+                      {c.stage != null && <div className="text-xs text-slate-400 mt-0.5">Stage {c.stage} ({CATEGORIES[c.category as CategoryId] || c.category})</div>}
                     </div>
                     <div className="text-xs font-semibold text-slate-600 whitespace-nowrap">{c.points}/2</div>
                   </div>
@@ -360,24 +401,24 @@ function SessionDetail(props: {
             )}
           </div>
 
-          <div>
-            <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-2">Student answer</div>
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-              <p className="text-slate-700 text-sm leading-relaxed italic">{session.student_answer}</p>
+          {session.transcript && session.transcript.length > 0 && (
+            <div>
+              <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3">Full assessment transcript</div>
+              <div className="space-y-4">
+                {session.transcript.map((t, i) => (
+                  <div key={i}>
+                    <div className="text-xs font-semibold text-brand uppercase tracking-wider mb-1">
+                      Stage {t.stage}: {t.title}
+                    </div>
+                    <p className="text-slate-500 text-sm italic mb-1">{t.question}</p>
+                    <p className="text-slate-800 text-sm leading-relaxed pl-3 border-l-2 border-slate-300">{t.answer}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
   );
-}
-
-function StatusDot(props: { status: "met" | "partial" | "not_met" }) {
-  if (props.status === "met") {
-    return <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0 text-sm font-bold">+</div>;
-  }
-  if (props.status === "partial") {
-    return <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center flex-shrink-0 text-sm font-bold">~</div>;
-  }
-  return <div className="w-6 h-6 rounded-full bg-red-100 text-red-700 flex items-center justify-center flex-shrink-0 text-sm font-bold">x</div>;
 }

@@ -12,14 +12,16 @@ export interface Competency {
   id: string;
   label: string;
   category: CategoryId;
+  framework: string;
+  stage: number;
   lookFor: string;
 }
 
-export interface CompetencyScore {
-  competencyId: string;
-  label: string;
-  status: "met" | "partial" | "not_met";
-  justification: string;
+export interface ScenarioStage {
+  stage: number;
+  title: string;
+  openingQuestion: string;
+  focus: string;
 }
 
 export interface Scenario {
@@ -28,10 +30,34 @@ export interface Scenario {
   topic: string;
   description: string;
   introSpoken: string;
-  questionText: string;
   caseFile: CaseFile;
+  stages: ScenarioStage[];
   competencies: Competency[];
   casePlainText: string;
+}
+
+export interface CompetencyScore {
+  competencyId: string;
+  label: string;
+  category: CategoryId;
+  framework: string;
+  stage: number;
+  status: "met" | "partial" | "not_met";
+  justification: string;
+}
+
+export interface StageScore {
+  stage: number;
+  title: string;
+  percentage: number;
+  points: number;
+  max: number;
+}
+
+export interface CategoryScore {
+  points: number;
+  max: number;
+  percentage: number | null;
 }
 
 export interface StudentFeedback {
@@ -47,7 +73,10 @@ export interface TeacherScoreCard {
   rating: Rating;
   totalPoints: number;
   maxPoints: number;
+  percentage: number;
   competencyScores: CompetencyScore[];
+  stageScores: StageScore[];
+  categoryScores: Record<string, CategoryScore>;
   overallSummary: string;
 }
 
@@ -61,6 +90,13 @@ export interface StudentIdentity {
   email: string;
 }
 
+export interface TranscriptTurn {
+  stage: number;
+  title: string;
+  question: string;
+  answer: string;
+}
+
 export type Stage =
   | "pick"
   | "welcome"
@@ -68,4 +104,4 @@ export type Stage =
   | "ready"
   | "listening"
   | "processing"
-  | "feedback";
+  | "scorecard";
